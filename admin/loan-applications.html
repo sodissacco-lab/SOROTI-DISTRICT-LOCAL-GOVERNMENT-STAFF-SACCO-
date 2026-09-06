@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Applications — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Loan Applications</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Review loan requests submitted by members through the portal.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div style="margin-bottom:20px;">
+        <select id="filter-status" style="padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
+          <option value="Submitted">Pending review</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="all">All applications</option>
+        </select>
+      </div>
+
+      <div id="apps-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+async function loadApplications() {
+  const wrap = document.getElementById('apps-wrap');
+  wrap.innerHTML = '<p class="text-soft">Loading…</p>';
+
+  const filter = document.getElementById('filter-status').value;
+  let query = supabaseClient
+    .from('loan_applications')
+    .select('*, members(full_name, membership_number, phone)')
+    .order('submitted_at', { ascending: false });
+  if (filter !== 'all') query = query.eq('status', filter);
+
+  const { data: apps, error } = await query;
+
+  if (error) {
+    wrap.innerHTML = '<div class="empty-state">Could not load loan applications.</div>';
+    return;
+  }
+
+  if (!apps || apps.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No loan applications in this view.</div>';
+    return;
+  }
+
+  wrap.innerHTML = apps.map(app => {
+    const statusClass = app.status === 'Approved' ? 'status-approved' : app.status === 'Rejected' ? 'status-rejected' : '';
+    const isPending = app.status === 'Submitted';
+    const member = app.members || {};
+
+    return `
+      <div class="app-card ${statusClass}" data-id="${app.id}" data-member-id="${app.member_id}">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(member.full_name || 'Unknown member')} — ${escapeHtml(app.product)}</h3>
+          <span class="badge ${app.status === 'Approved' ? 'badge-green' : ''}" ${app.status === 'Rejected' ? 'style="background:var(--brick);color:var(--white);"' : ''}>${escapeHtml(app.status)}</span>
+        </div>
+        <div class="app-meta">
+          <div><span class="k">Membership No:</span> ${escapeHtml(member.membership_number || '—')}</div>
+          <div><span class="k">Phone:</span> ${escapeHtml(member.phone || '—')}</div>
+          <div><span class="k">Amount requested:</span> ${formatUGX(app.amount)}</div>
+          <div><span class="k">Period:</span> ${app.period_months} months</div>
+          <div><span class="k">Submitted:</span> ${formatDate(app.submitted_at)}</div>
+          ${app.decided_at ? `<div><span class="k">Decided:</span> ${formatDate(app.decided_at)}</div>` : ''}
+        </div>
+        <p style="margin:10px 0 0;font-size:0.9rem;"><span class="text-soft">Purpose:</span> ${escapeHtml(app.purpose)}</p>
+        ${isPending ? `
+          <div class="app-actions" style="flex-direction:column;align-items:stretch;">
+            <textarea class="decision-notes" placeholder="Optional note to the member (e.g. reason for decision)" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" rows="2"></textarea>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-green btn-sm approve-btn">Approve &amp; create loan</button>
+              <button class="btn btn-danger btn-sm reject-btn">Reject</button>
+            </div>
+          </div>
+        ` : app.decision_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note sent:</strong> ${escapeHtml(app.decision_notes)}</p>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const id = card.getAttribute('data-id');
+      const notes = card.querySelector('.decision-notes').value.trim();
+      btn.disabled = true;
+      btn.textContent = 'Approving…';
+      await approveLoanApplication(id, notes);
+    });
+  });
+
+  wrap.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const id = card.getAttribute('data-id');
+      const notes = card.querySelector('.decision-notes').value.trim();
+      btn.disabled = true;
+      btn.textContent = 'Rejecting…';
+
+      const { error } = await supabaseClient
+        .from('loan_applications')
+        .update({ status: 'Rejected', decision_notes: notes || null, decided_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) {
+        showMsg('Could not reject this application.', 'error');
+      } else {
+        showMsg('Application rejected.', 'success');
+      }
+      loadApplications();
+    });
+  });
+}
+
+async function approveLoanApplication(applicationId, notes) {
+  const { data: app, error: fetchError } = await supabaseClient
+    .from('loan_applications')
+    .select('*')
+    .eq('id', applicationId)
+    .single();
+
+  if (fetchError || !app) {
+    showMsg('Could not find this application.', 'error');
+    loadApplications();
+    return;
+  }
+
+  const { data: newLoan, error: loanError } = await supabaseClient
+    .from('loans')
+    .insert([{
+      member_id: app.member_id,
+      product: app.product,
+      principal: app.amount,
+      outstanding_balance: app.amount,
+      status: 'Active',
+      disbursed_at: new Date().toISOString().slice(0, 10)
+    }])
+    .select()
+    .single();
+
+  if (loanError) {
+    showMsg('Could not create the loan record: ' + loanError.message, 'error');
+    loadApplications();
+    return;
+  }
+
+  const { error: updateError } = await supabaseClient
+    .from('loan_applications')
+    .update({
+      status: 'Approved',
+      decision_notes: notes || null,
+      decided_at: new Date().toISOString(),
+      loan_id: newLoan.id
+    })
+    .eq('id', applicationId);
+
+  if (updateError) {
+    showMsg('Loan created, but the application status could not be updated.', 'error');
+  } else {
+    showMsg('Approved — a new loan record has been created and the member can now see it in their portal.', 'success');
+  }
+
+  loadApplications();
+}
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+  await loadApplications();
+})();
+
+document.getElementById('filter-status').addEventListener('change', loadApplications);
+</script>
+</body>
+</html>
