@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications — SODIS-SACCO Member Portal</title>
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark">SS</span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Member Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="shares.html">Shares</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="statements.html">Statements</a></li>
+        <li><a href="notifications.html">Notifications</a></li>
+        <li><a href="requests.html">Requests</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-member-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Membership No: <span data-member-number>—</span></div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Notifications</h1>
+      <div id="notif-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script>
+(async () => {
+  const member = await requirePortalAuth();
+  if (!member) return;
+
+  const { data: notifs } = await supabaseClient
+    .from('notifications')
+    .select('*')
+    .eq('member_id', member.id)
+    .order('created_at', { ascending: false });
+
+  const wrap = document.getElementById('notif-wrap');
+  if (!notifs || notifs.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No notifications yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = notifs.map(n => `
+    <div class="notif-item ${n.is_read ? '' : 'unread'}">
+      <div>${escapeHtml(n.message)}</div>
+      <div class="notif-date">${formatDate(n.created_at)}</div>
+    </div>
+  `).join('');
+
+  // Mark all as read once viewed
+  const unreadIds = notifs.filter(n => !n.is_read).map(n => n.id);
+  if (unreadIds.length) {
+    await supabaseClient.from('notifications').update({ is_read: true }).in('id', unreadIds);
+  }
+})();
+</script>
+</body>
+</html>

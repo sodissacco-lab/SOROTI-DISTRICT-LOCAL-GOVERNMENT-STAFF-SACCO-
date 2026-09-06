@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statements — SODIS-SACCO Member Portal</title>
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  @media print {
+    .portal-sidebar, .portal-topbar, .no-print { display: none !important; }
+    .portal-main { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark">SS</span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Member Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="shares.html">Shares</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="statements.html">Statements</a></li>
+        <li><a href="notifications.html">Notifications</a></li>
+        <li><a href="requests.html">Requests</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-member-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Membership No: <span data-member-number>—</span></div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;" class="no-print">
+        <h1 style="font-size:1.4rem;margin:0;">Account Statement</h1>
+        <button class="btn btn-outline-dark" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+      <p class="text-soft" id="statement-meta">—</p>
+
+      <div class="section-head" style="margin-bottom:14px;margin-top:20px;">
+        <h2 style="font-size:1.1rem;">Savings transactions</h2>
+      </div>
+      <div id="savings-wrap"><p class="text-soft">Loading…</p></div>
+
+      <div class="section-head" style="margin-bottom:14px;margin-top:30px;">
+        <h2 style="font-size:1.1rem;">Loan repayments</h2>
+      </div>
+      <div id="loans-wrap"><p class="text-soft">Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script>
+(async () => {
+  const member = await requirePortalAuth();
+  if (!member) return;
+
+  document.getElementById('statement-meta').textContent =
+    `${member.full_name} — Membership No: ${member.membership_number} — Generated ${formatDate(new Date())}`;
+
+  const { data: savingsTxns } = await supabaseClient
+    .from('savings_transactions')
+    .select('*')
+    .eq('member_id', member.id)
+    .order('txn_date', { ascending: false });
+
+  const savingsWrap = document.getElementById('savings-wrap');
+  if (!savingsTxns || savingsTxns.length === 0) {
+    savingsWrap.innerHTML = '<div class="empty-state">No savings transactions to show.</div>';
+  } else {
+    savingsWrap.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Description</th><th style="text-align:right;">Credit</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Balance</th></tr></thead>
+        <tbody>
+          ${savingsTxns.map(t => `
+            <tr>
+              <td>${formatDate(t.txn_date)}</td>
+              <td>${escapeHtml(t.description)}</td>
+              <td class="num">${t.credit ? formatUGX(t.credit) : ''}</td>
+              <td class="num">${t.debit ? formatUGX(t.debit) : ''}</td>
+              <td class="num">${formatUGX(t.balance_after)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  const { data: loans } = await supabaseClient
+    .from('loans')
+    .select('id, product')
+    .eq('member_id', member.id);
+
+  const loansWrap = document.getElementById('loans-wrap');
+  if (!loans || loans.length === 0) {
+    loansWrap.innerHTML = '<div class="empty-state">No loan repayments to show.</div>';
+    return;
+  }
+
+  const { data: repayments } = await supabaseClient
+    .from('loan_repayments')
+    .select('*')
+    .eq('member_id', member.id)
+    .order('txn_date', { ascending: false });
+
+  if (!repayments || repayments.length === 0) {
+    loansWrap.innerHTML = '<div class="empty-state">No loan repayments to show.</div>';
+    return;
+  }
+
+  const loanNameById = Object.fromEntries(loans.map(l => [l.id, l.product]));
+
+  loansWrap.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Loan</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Principal</th><th style="text-align:right;">Interest</th></tr></thead>
+      <tbody>
+        ${repayments.map(r => `
+          <tr>
+            <td>${formatDate(r.txn_date)}</td>
+            <td>${escapeHtml(loanNameById[r.loan_id] || 'Loan')}</td>
+            <td class="num">${formatUGX(r.amount)}</td>
+            <td class="num">${formatUGX(r.principal_portion)}</td>
+            <td class="num">${formatUGX(r.interest_portion)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+})();
+</script>
+</body>
+</html>
