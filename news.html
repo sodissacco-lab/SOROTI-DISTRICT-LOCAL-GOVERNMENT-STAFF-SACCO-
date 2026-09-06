@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>News &amp; Announcements — SODIS-SACCO</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">SS</span>
+      <span class="brand-text"><strong>SODIS-SACCO</strong><span>Soroti District LG Staff SACCO</span></span>
+    </a>
+    <nav class="main-nav">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="membership.html">Membership</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="governance.html">Governance</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+    <div class="nav-actions">
+      <a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a>
+      <button class="menu-toggle" aria-expanded="false" aria-label="Menu">Menu</button>
+    </div>
+  </div>
+  <div class="mobile-panel">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="membership.html">Membership</a></li>
+      <li><a href="savings.html">Savings</a></li>
+      <li><a href="loans.html">Loans</a></li>
+      <li><a href="governance.html">Governance</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="news.html">News</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a></li>
+    </ul>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="index.html">Home</a> / News</div>
+    <h1>News &amp; announcements</h1>
+    <p>Updates from SODIS-SACCO management and the Board.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div id="news-list">
+      <p class="text-soft">Loading news…</p>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <h4>SODIS-SACCO</h4>
+        <p style="color:var(--stone);font-size:0.9rem;max-width:40ch;">Soroti District Local Government Staff Cooperative Savings and Credit Society Limited. Registration 9020/RCS.</p>
+        <p style="color:var(--stone);font-size:0.9rem;">Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda.</p>
+      </div>
+      <div>
+        <h4>Quick links</h4>
+        <ul>
+          <li><a href="about.html">About us</a></li>
+          <li><a href="membership.html">Membership</a></li>
+          <li><a href="governance.html">Governance</a></li>
+          <li><a href="resources.html">Resources</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Get in touch</h4>
+        <ul>
+          <li><a href="contact.html">Contact us</a></li>
+          <li><a href="news.html">News &amp; events</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> SODIS-SACCO. All rights reserved.</span>
+      <span>Registration 9020/RCS</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/site.js"></script>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+async function loadNews() {
+  const list = document.getElementById('news-list');
+  try {
+    const { data, error } = await supabaseClient
+      .from('news_posts')
+      .select('*')
+      .eq('published', true)
+      .order('posted_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<p class="text-soft">No news posted yet. Check back soon.</p>';
+      return;
+    }
+
+    list.innerHTML = data.map(post => {
+      const d = new Date(post.posted_at);
+      const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      return `
+        <div class="news-row">
+          <div class="news-date">${dateStr}</div>
+          <div>
+            <h3>${escapeHtml(post.title)}</h3>
+            <p>${escapeHtml(post.body)}</p>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error(e);
+    list.innerHTML = '<p class="text-soft">News could not be loaded right now.</p>';
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+loadNews();
+</script>
+</body>
+</html>
