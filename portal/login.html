@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Login — SODIS-SACCO</title>
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--indigo);
+    padding: 20px;
+  }
+  .login-panel {
+    background: var(--white);
+    max-width: 420px;
+    width: 100%;
+    padding: 36px 32px;
+  }
+  .login-brand { text-align: center; margin-bottom: 26px; }
+  .login-brand .brand-mark {
+    width: 52px; height: 52px; margin: 0 auto 12px;
+    border: 2px solid var(--gold); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head); color: var(--indigo); font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-panel">
+    <div class="login-brand">
+      <div class="brand-mark">SS</div>
+      <h1 style="font-size:1.3rem;margin-bottom:2px;">SODIS-SACCO</h1>
+      <p class="text-soft" style="margin:0;font-size:0.88rem;">Member Portal</p>
+    </div>
+
+    <div id="form-msg" class="form-msg"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-green btn-block" id="submit-btn">Log in</button>
+    </form>
+
+    <p style="text-align:center;margin-top:18px;font-size:0.88rem;">
+      <a href="#" id="forgot-link">Forgot your password?</a>
+    </p>
+
+    <hr class="ledger-rule" style="margin:24px 0;">
+    <p class="text-soft" style="text-align:center;font-size:0.85rem;margin:0;">
+      Not yet a member? <a href="../membership.html">Apply for membership</a>
+    </p>
+    <p style="text-align:center;font-size:0.85rem;margin-top:10px;">
+      <a href="../index.html">← Back to SODIS-SACCO website</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script>
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('form-msg');
+  msg.className = 'form-msg';
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  btn.disabled = true;
+  btn.textContent = 'Logging in…';
+
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    msg.textContent = 'Login failed: ' + error.message;
+    msg.className = 'form-msg error show';
+    btn.disabled = false;
+    btn.textContent = 'Log in';
+    return;
+  }
+
+  window.location.href = 'dashboard.html';
+});
+
+document.getElementById('forgot-link').addEventListener('click', async function(e) {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const msg = document.getElementById('form-msg');
+  msg.className = 'form-msg';
+
+  if (!email) {
+    msg.textContent = 'Enter your email above first, then tap "Forgot your password?" again.';
+    msg.className = 'form-msg error show';
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+  if (error) {
+    msg.textContent = 'Could not send reset email: ' + error.message;
+    msg.className = 'form-msg error show';
+  } else {
+    msg.textContent = 'If that email is registered, a password reset link has been sent.';
+    msg.className = 'form-msg success show';
+  }
+});
+
+// If already logged in, skip straight to dashboard
+(async () => {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) window.location.href = 'dashboard.html';
+})();
+</script>
+</body>
+</html>
