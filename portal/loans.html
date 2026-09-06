@@ -85,16 +85,17 @@
 
           <hr class="ledger-rule" style="margin:20px 0;">
           <h4 style="color:var(--indigo);margin:0 0 4px;">Guarantors (optional)</h4>
-          <p class="hint" style="margin-bottom:14px;">Enter the membership number of anyone willing to guarantee this loan. They'll be asked to accept or decline in their own portal.</p>
-          <div class="field-row two">
-            <div class="field">
-              <label for="guarantor1">Guarantor 1 membership number</label>
-              <input type="text" id="guarantor1" placeholder="e.g. SODIS-000045">
-            </div>
-            <div class="field">
-              <label for="guarantor2">Guarantor 2 membership number</label>
-              <input type="text" id="guarantor2" placeholder="e.g. SODIS-000067">
-            </div>
+          <p class="hint" style="margin-bottom:14px;">Start typing a name or membership number — matching members will appear below to pick from.</p>
+
+          <div class="field guarantor-picker" data-slot="1">
+            <label>Guarantor 1</label>
+            <input type="text" class="guarantor-search" autocomplete="off" placeholder="Type a name or membership number…">
+            <div class="guarantor-results"></div>
+          </div>
+          <div class="field guarantor-picker" data-slot="2">
+            <label>Guarantor 2</label>
+            <input type="text" class="guarantor-search" autocomplete="off" placeholder="Type a name or membership number…">
+            <div class="guarantor-results"></div>
           </div>
 
           <hr class="ledger-rule" style="margin:20px 0;">
@@ -167,6 +168,7 @@
 <script src="js/portal.js"></script>
 <script>
 let currentMember = null;
+const selectedGuarantors = { 1: null, 2: null }; // { membershipNumber, fullName, memberId }
 
 document.getElementById('toggle-apply-btn').addEventListener('click', () => {
   const panel = document.getElementById('apply-panel');
@@ -176,6 +178,50 @@ document.getElementById('toggle-apply-btn').addEventListener('click', () => {
 
 document.getElementById('has-collateral').addEventListener('change', (e) => {
   document.getElementById('collateral-fields').style.display = e.target.checked ? 'block' : 'none';
+});
+
+// ---- Guarantor autocomplete ----
+let searchDebounce = null;
+document.querySelectorAll('.guarantor-picker').forEach(picker => {
+  const slot = picker.getAttribute('data-slot');
+  const input = picker.querySelector('.guarantor-search');
+  const resultsBox = picker.querySelector('.guarantor-results');
+
+  input.addEventListener('input', () => {
+    selectedGuarantors[slot] = null;
+    clearTimeout(searchDebounce);
+    const term = input.value.trim();
+    if (term.length < 2) { resultsBox.innerHTML = ''; return; }
+
+    searchDebounce = setTimeout(async () => {
+      const { data, error } = await supabaseClient.rpc('search_members_for_guarantor', { search_term: term });
+      if (error || !data) { resultsBox.innerHTML = ''; return; }
+
+      const filtered = data.filter(m => m.membership_number !== currentMember.membership_number);
+      if (filtered.length === 0) {
+        resultsBox.innerHTML = '<div class="guarantor-result-item text-soft">No matching members found.</div>';
+        return;
+      }
+
+      resultsBox.innerHTML = filtered.map(m =>
+        `<div class="guarantor-result-item" data-name="${escapeHtml(m.full_name)}" data-number="${escapeHtml(m.membership_number)}" data-id="${m.id}">
+          ${escapeHtml(m.full_name)} <span class="text-soft">(${escapeHtml(m.membership_number)})</span>
+        </div>`
+      ).join('');
+
+      resultsBox.querySelectorAll('.guarantor-result-item[data-id]').forEach(item => {
+        item.addEventListener('click', () => {
+          selectedGuarantors[slot] = {
+            memberId: item.getAttribute('data-id'),
+            fullName: item.getAttribute('data-name'),
+            membershipNumber: item.getAttribute('data-number')
+          };
+          input.value = `${item.getAttribute('data-name')} (${item.getAttribute('data-number')})`;
+          resultsBox.innerHTML = '';
+        });
+      });
+    }, 300);
+  });
 });
 
 document.getElementById('apply-form').addEventListener('submit', async function(e) {
@@ -205,27 +251,16 @@ document.getElementById('apply-form').addEventListener('submit', async function(
     return;
   }
 
-  // Guarantors — best-effort lookup by membership number
-  const guarantorInputs = [
-    document.getElementById('guarantor1').value.trim(),
-    document.getElementById('guarantor2').value.trim()
-  ].filter(v => v);
-
-  let guarantorWarning = '';
-  for (const num of guarantorInputs) {
-    const { data: gMember } = await supabaseClient
-      .from('members').select('id').eq('membership_number', num).maybeSingle();
-    if (gMember) {
+  for (const slot of [1, 2]) {
+    const g = selectedGuarantors[slot];
+    if (g) {
       await supabaseClient.from('loan_guarantors').insert([{
         loan_application_id: newApp.id,
-        guarantor_member_id: gMember.id
+        guarantor_member_id: g.memberId
       }]);
-    } else {
-      guarantorWarning += ` Could not find a member with number "${num}" — that guarantor was not added.`;
     }
   }
 
-  // Collateral
   if (document.getElementById('has-collateral').checked) {
     await supabaseClient.from('loan_collateral').insert([{
       loan_application_id: newApp.id,
@@ -235,10 +270,13 @@ document.getElementById('apply-form').addEventListener('submit', async function(
     }]);
   }
 
-  msg.textContent = 'Application submitted. You can track its status below.' + guarantorWarning;
-  msg.className = 'form-msg ' + (guarantorWarning ? 'error' : 'success') + ' show';
+  msg.textContent = `Application submitted — reference ${newApp.application_number}. You can track its status below.`;
+  msg.className = 'form-msg success show';
   document.getElementById('apply-form').reset();
   document.getElementById('collateral-fields').style.display = 'none';
+  selectedGuarantors[1] = null;
+  selectedGuarantors[2] = null;
+  document.querySelectorAll('.guarantor-results').forEach(r => r.innerHTML = '');
   await loadApplications();
 
   btn.disabled = false;
@@ -256,7 +294,7 @@ async function loadGuaranteeRequests() {
   const wrap = document.getElementById('guarantee-requests-wrap');
   const { data: reqs, error } = await supabaseClient
     .from('loan_guarantors')
-    .select('*, loan_applications(product, amount, purpose, members(full_name, membership_number))')
+    .select('*, loan_applications(application_number, product, amount, purpose, members(full_name, membership_number))')
     .eq('guarantor_member_id', currentMember.id)
     .order('requested_at', { ascending: false });
 
@@ -268,7 +306,7 @@ async function loadGuaranteeRequests() {
   wrap.innerHTML = reqs.map(r => {
     const app = r.loan_applications || {};
     const applicant = app.members || {};
-    const statusBadge = r.status === 'Accepted' ? '<span class="badge badge-green">Accepted</span>'
+    const statusBadge = r.status === 'Accepted' ? '<span class="badge badge-green">Signed as guarantor</span>'
       : r.status === 'Declined' ? '<span class="badge" style="background:var(--brick);color:var(--white);">Declined</span>'
       : '<span class="badge">Awaiting your response</span>';
 
@@ -279,23 +317,34 @@ async function loadGuaranteeRequests() {
           ${statusBadge}
         </div>
         <div class="app-meta">
+          <div><span class="k">Application:</span> ${escapeHtml(app.application_number || '—')}</div>
           <div><span class="k">Loan product:</span> ${escapeHtml(app.product || '—')}</div>
           <div><span class="k">Amount:</span> ${formatUGX(app.amount)}</div>
         </div>
         <p class="text-soft" style="margin:8px 0 0;font-size:0.88rem;">${escapeHtml(app.purpose || '')}</p>
         ${r.status === 'Pending' ? `
-          <div class="app-actions">
-            <button class="btn btn-green btn-sm guarantee-accept" data-id="${r.id}">Accept</button>
-            <button class="btn btn-danger btn-sm guarantee-decline" data-id="${r.id}">Decline</button>
+          <div class="sign-box">
+            <label for="gname-${r.id}">Type your full name to sign as guarantor</label>
+            <input type="text" class="guarantor-sign-name" id="gname-${r.id}" placeholder="${escapeHtml(currentMember.full_name)}">
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-green btn-sm guarantee-accept" data-id="${r.id}">Sign &amp; accept</button>
+              <button class="btn btn-danger btn-sm guarantee-decline" data-id="${r.id}">Decline</button>
+            </div>
           </div>
-        ` : ''}
+        ` : r.status === 'Accepted' ? `<p class="text-soft" style="margin-top:8px;font-size:0.85rem;">Signed as "${escapeHtml(r.guarantor_signature_name)}" on ${formatDate(r.guarantor_signed_at)}.</p>` : ''}
       </div>
     `;
   }).join('');
 
   wrap.querySelectorAll('.guarantee-accept').forEach(btn => {
     btn.addEventListener('click', async () => {
-      await supabaseClient.from('loan_guarantors').update({ status: 'Accepted', responded_at: new Date().toISOString() }).eq('id', btn.getAttribute('data-id'));
+      const id = btn.getAttribute('data-id');
+      const name = document.getElementById('gname-' + id).value.trim();
+      if (!name) { alert('Please type your full name to sign as guarantor.'); return; }
+      await supabaseClient.from('loan_guarantors').update({
+        status: 'Accepted', responded_at: new Date().toISOString(),
+        guarantor_signature_name: name, guarantor_signed_at: new Date().toISOString()
+      }).eq('id', id);
       loadGuaranteeRequests();
     });
   });
@@ -323,7 +372,7 @@ async function loadApplications() {
   wrap.innerHTML = apps.map(a => `
     <div class="app-card ${a.status === 'Disbursed' ? 'status-approved' : a.status === 'Rejected' ? 'status-rejected' : ''}">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-        <h3>${escapeHtml(a.product)}</h3>
+        <h3>${escapeHtml(a.product)} <span class="text-soft" style="font-size:0.8rem;font-weight:400;">${escapeHtml(a.application_number || '')}</span></h3>
         ${appStatusBadge(a.status)}
       </div>
       <div class="app-meta">
@@ -338,7 +387,7 @@ async function loadApplications() {
   `).join('');
 }
 
-function printAgreement(text) {
+function printText(text) {
   document.getElementById('agreement-print-area').innerHTML =
     `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
   document.body.classList.add('print-agreement-mode');
@@ -384,6 +433,7 @@ async function loadAgreements() {
             <span class="badge" style="background:var(--indigo);color:var(--white);">Awaiting SACCO countersignature</span>
           </div>
           <p class="text-soft" style="margin-top:8px;">Signed by you as ${escapeHtml(a.member_signature_name)} on ${formatDate(a.member_signed_at)}. A SACCO officer still needs to countersign before disbursement.</p>
+          <button class="btn btn-outline-dark btn-sm print-agreement-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print</button>
         </div>
       `;
     } else {
@@ -403,6 +453,10 @@ async function loadAgreements() {
     }
   }).join('');
 
+  wrap.querySelectorAll('.print-agreement-btn').forEach(btn => {
+    btn.addEventListener('click', () => printText(decodeURIComponent(btn.getAttribute('data-text'))));
+  });
+
   wrap.querySelectorAll('.sign-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
@@ -420,10 +474,6 @@ async function loadAgreements() {
       }).eq('id', id);
       loadAgreements();
     });
-  });
-
-  wrap.querySelectorAll('.print-agreement-btn').forEach(btn => {
-    btn.addEventListener('click', () => printAgreement(decodeURIComponent(btn.getAttribute('data-text'))));
   });
 }
 
@@ -448,11 +498,28 @@ async function loadLoans() {
   };
 
   const cards = await Promise.all(loans.map(async (loan) => {
+    const { data: schedule } = await supabaseClient
+      .from('loan_repayment_schedule')
+      .select('*')
+      .eq('loan_id', loan.id)
+      .order('installment_number', { ascending: true });
+
     const { data: repayments } = await supabaseClient
       .from('loan_repayments')
       .select('*')
       .eq('loan_id', loan.id)
       .order('txn_date', { ascending: false });
+
+    const scheduleRows = (schedule || []).map(s => `
+      <tr>
+        <td>#${s.installment_number}</td>
+        <td>${formatDate(s.due_date)}</td>
+        <td class="num">${formatUGX(s.principal_portion)}</td>
+        <td class="num">${formatUGX(s.interest_portion)}</td>
+        <td class="num">${formatUGX(s.amount)}</td>
+        <td>${s.status}</td>
+      </tr>
+    `).join('');
 
     const repaymentRows = (repayments || []).map(r => `
       <tr>
@@ -475,7 +542,14 @@ async function loadLoans() {
           <div class="item"><div class="label">Disbursed</div><div class="value" style="font-size:0.95rem;">${formatDate(loan.disbursed_at)}</div></div>
           <div class="item"><div class="label">Next installment</div><div class="value" style="font-size:0.95rem;">${loan.next_installment_amount ? formatUGX(loan.next_installment_amount) : '—'}</div></div>
         </div>
-        ${loan.next_installment_date ? `<p class="text-soft" style="margin-top:12px;font-size:0.88rem;">Next due: ${formatDate(loan.next_installment_date)}</p>` : ''}
+        ${scheduleRows ? `
+          <hr class="ledger-rule" style="margin:18px 0;">
+          <div style="font-size:0.88rem;font-weight:600;color:var(--indigo);margin-bottom:8px;">Repayment schedule</div>
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Due date</th><th style="text-align:right;">Principal</th><th style="text-align:right;">Interest</th><th style="text-align:right;">Total</th><th>Status</th></tr></thead>
+            <tbody>${scheduleRows}</tbody>
+          </table>
+        ` : ''}
         ${repaymentRows ? `
           <hr class="ledger-rule" style="margin:18px 0;">
           <div style="font-size:0.88rem;font-weight:600;color:var(--indigo);margin-bottom:8px;">Repayment history</div>
