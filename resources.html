@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resources — SODIS-SACCO</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">SS</span>
+      <span class="brand-text"><strong>SODIS-SACCO</strong><span>Soroti District LG Staff SACCO</span></span>
+    </a>
+    <nav class="main-nav">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="membership.html">Membership</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="governance.html">Governance</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+    <div class="nav-actions">
+      <a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a>
+      <button class="menu-toggle" aria-expanded="false" aria-label="Menu">Menu</button>
+    </div>
+  </div>
+  <div class="mobile-panel">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="membership.html">Membership</a></li>
+      <li><a href="savings.html">Savings</a></li>
+      <li><a href="loans.html">Loans</a></li>
+      <li><a href="governance.html">Governance</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="news.html">News</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a></li>
+    </ul>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Resources</div>
+    <h1>Resources</h1>
+    <p>Policy documents and forms for members.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="grid grid-2">
+      <div class="value-item">
+        <h3>Governance Policy Manual</h3>
+        <p>Board structure, committees, meetings and code of conduct. Available at the SODIS-SACCO office.</p>
+      </div>
+      <div class="value-item">
+        <h3>Lending &amp; Credit Policy Manual</h3>
+        <p>Loan eligibility, sizing, collateral and approval rules. Available at the SODIS-SACCO office.</p>
+      </div>
+      <div class="value-item">
+        <h3>Finance and Risk Policy Manual</h3>
+        <p>Accounting, savings and risk management policy. Available at the SODIS-SACCO office.</p>
+      </div>
+      <div class="value-item">
+        <h3>Operations Policy Manual</h3>
+        <p>Records, procurement, assets and ICT use policy. Available at the SODIS-SACCO office.</p>
+      </div>
+    </div>
+    <p class="text-soft" style="margin-top:30px;">Downloadable PDF versions of these manuals will be added here. In the meantime, contact the office to request a copy.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <h4>SODIS-SACCO</h4>
+        <p style="color:var(--stone);font-size:0.9rem;max-width:40ch;">Soroti District Local Government Staff Cooperative Savings and Credit Society Limited. Registration 9020/RCS.</p>
+        <p style="color:var(--stone);font-size:0.9rem;">Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda.</p>
+      </div>
+      <div>
+        <h4>Quick links</h4>
+        <ul>
+          <li><a href="about.html">About us</a></li>
+          <li><a href="membership.html">Membership</a></li>
+          <li><a href="governance.html">Governance</a></li>
+          <li><a href="resources.html">Resources</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Get in touch</h4>
+        <ul>
+          <li><a href="contact.html">Contact us</a></li>
+          <li><a href="news.html">News &amp; events</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> SODIS-SACCO. All rights reserved.</span>
+      <span>Registration 9020/RCS</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/site.js"></script>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>
