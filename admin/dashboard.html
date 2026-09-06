@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — SODIS-SACCO Management Portal</title>
 <link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
 <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
@@ -21,6 +24,7 @@
       <ul>
         <li><a href="dashboard.html">Dashboard</a></li>
         <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
         <li><a href="news.html">News</a></li>
         <li><a href="messages.html">Contact Messages</a></li>
         <li><a href="stats.html">Site Statistics</a></li>
@@ -56,6 +60,12 @@
             <div class="figure" id="pending-apps">—</div>
           </div>
         </a>
+        <a href="loan-applications.html" style="text-decoration:none;">
+          <div class="summary-card gold">
+            <div class="label">Pending loan requests</div>
+            <div class="figure" id="pending-loans">—</div>
+          </div>
+        </a>
         <a href="messages.html" style="text-decoration:none;">
           <div class="summary-card">
             <div class="label">Unhandled messages</div>
@@ -73,8 +83,8 @@
       </div>
       <div class="grid grid-3">
         <a href="applications.html" class="btn btn-outline-dark btn-block">Review applications</a>
+        <a href="loan-applications.html" class="btn btn-outline-dark btn-block">Review loan requests</a>
         <a href="news.html" class="btn btn-outline-dark btn-block">Post news</a>
-        <a href="stats.html" class="btn btn-outline-dark btn-block">Update site statistics</a>
       </div>
     </div>
   </div>
@@ -93,6 +103,12 @@
     .select('*', { count: 'exact', head: true })
     .eq('status', 'Submitted');
   document.getElementById('pending-apps').textContent = pendingCount ?? 0;
+
+  const { count: pendingLoanCount } = await supabaseClient
+    .from('loan_applications')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'Submitted');
+  document.getElementById('pending-loans').textContent = pendingLoanCount ?? 0;
 
   const { count: msgCount } = await supabaseClient
     .from('contact_messages')
