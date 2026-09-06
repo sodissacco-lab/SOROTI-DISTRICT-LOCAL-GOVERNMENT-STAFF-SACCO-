@@ -3,576 +3,183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Loans — SODIS-SACCO Member Portal</title>
-<link rel="icon" href="../assets/favicon.png" type="image/png">
-<link rel="manifest" href="../manifest.json">
+<title>Loans — SODIS-SACCO</title>
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1B3A5C">
-<link rel="apple-touch-icon" href="../assets/icon-192.png">
-<link rel="stylesheet" href="../css/styles.css">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-<div class="portal-shell">
-  <aside class="portal-sidebar">
-    <div class="brand">
-      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
-        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
-        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Member Portal</span></span>
-      </a>
-    </div>
-    <nav>
+<header class="site-header">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <span class="brand-mark"><img src="assets/logo.png" alt="SODIS-SACCO logo"></span>
+      <span class="brand-text"><strong>SODIS-SACCO</strong><span>Soroti District LG Staff SACCO</span></span>
+    </a>
+    <nav class="main-nav">
       <ul>
-        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="membership.html">Membership</a></li>
         <li><a href="savings.html">Savings</a></li>
-        <li><a href="shares.html">Shares</a></li>
         <li><a href="loans.html">Loans</a></li>
-        <li><a href="statements.html">Statements</a></li>
-        <li><a href="notifications.html">Notifications</a></li>
-        <li><a href="requests.html">Requests</a></li>
+        <li><a href="governance.html">Governance</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="portal/login.html">Login</a></li>
       </ul>
-      <div class="logout-row">
-        <ul>
-          <li><a href="#" data-logout>Log out</a></li>
-          <li><a href="../index.html">← SODIS-SACCO website</a></li>
-        </ul>
-      </div>
     </nav>
-  </aside>
-
-  <div class="portal-main">
-    <div class="portal-topbar">
-      <button class="sidebar-toggle">Menu</button>
-      <div style="text-align:right;">
-        <div style="font-weight:600;color:var(--indigo);" data-member-name>—</div>
-        <div style="font-size:0.8rem;color:var(--ink-soft);">Membership No: <span data-member-number>—</span></div>
-      </div>
-    </div>
-
-    <div class="portal-content">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-        <h1 style="font-size:1.4rem;margin:0;">Loans</h1>
-        <button class="btn btn-green btn-sm" id="toggle-apply-btn">Apply for a loan</button>
-      </div>
-
-      <div id="apply-panel" class="form-panel" style="max-width:600px;margin-bottom:32px;display:none;">
-        <h3 class="mt-0">Loan application</h3>
-        <div id="form-msg" class="form-msg"></div>
-        <form id="apply-form">
-          <div class="field">
-            <label for="product">Loan product *</label>
-            <select id="product" required>
-              <option value="">Select…</option>
-              <option>Ordinary Loan</option>
-              <option>Emergency Loan</option>
-              <option>Express Loan</option>
-              <option>Weekend Loan</option>
-            </select>
-          </div>
-          <div class="field-row two">
-            <div class="field">
-              <label for="amount">Amount requested (UGX) *</label>
-              <input type="number" id="amount" min="1" required>
-            </div>
-            <div class="field">
-              <label for="period_months">Repayment period (months) *</label>
-              <input type="number" id="period_months" min="1" required>
-            </div>
-          </div>
-          <div class="field">
-            <label for="purpose">Purpose *</label>
-            <textarea id="purpose" rows="3" required></textarea>
-          </div>
-
-          <hr class="ledger-rule" style="margin:20px 0;">
-          <h4 style="color:var(--indigo);margin:0 0 4px;">Guarantors (optional)</h4>
-          <p class="hint" style="margin-bottom:14px;">Start typing a name or membership number — matching members will appear below to pick from.</p>
-
-          <div class="field guarantor-picker" data-slot="1">
-            <label>Guarantor 1</label>
-            <input type="text" class="guarantor-search" autocomplete="off" placeholder="Type a name or membership number…">
-            <div class="guarantor-results"></div>
-          </div>
-          <div class="field guarantor-picker" data-slot="2">
-            <label>Guarantor 2</label>
-            <input type="text" class="guarantor-search" autocomplete="off" placeholder="Type a name or membership number…">
-            <div class="guarantor-results"></div>
-          </div>
-
-          <hr class="ledger-rule" style="margin:20px 0;">
-          <div class="field">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
-              <input type="checkbox" id="has-collateral" style="width:auto;">
-              I am pledging collateral for this loan
-            </label>
-          </div>
-          <div id="collateral-fields" style="display:none;">
-            <div class="field">
-              <label for="collateral_type">Collateral type</label>
-              <select id="collateral_type">
-                <option>Land title</option>
-                <option>Vehicle logbook</option>
-                <option>Savings</option>
-                <option>Shares</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="collateral_description">Description</label>
-              <input type="text" id="collateral_description" placeholder="e.g. Plot 14, Soroti Town, Title No. XXXX">
-            </div>
-            <div class="field">
-              <label for="collateral_value">Estimated value (UGX)</label>
-              <input type="number" id="collateral_value" min="0">
-            </div>
-          </div>
-
-          <button type="submit" class="btn btn-green btn-block" id="submit-btn" style="margin-top:10px;">Submit application</button>
-        </form>
-      </div>
-
-      <div class="section-head" style="margin-bottom:14px;">
-        <h2 style="font-size:1.1rem;">Guarantee requests for me</h2>
-      </div>
-      <div id="guarantee-requests-wrap" style="margin-bottom:36px;">
-        <p class="text-soft">Loading…</p>
-      </div>
-
-      <div class="section-head" style="margin-bottom:14px;">
-        <h2 style="font-size:1.1rem;">My loan applications</h2>
-      </div>
-      <div id="applications-wrap" style="margin-bottom:36px;">
-        <p class="text-soft">Loading…</p>
-      </div>
-
-      <div class="section-head" style="margin-bottom:14px;">
-        <h2 style="font-size:1.1rem;">Agreements</h2>
-      </div>
-      <div id="agreements-wrap" style="margin-bottom:36px;">
-        <p class="text-soft">Loading…</p>
-      </div>
-
-      <div class="section-head" style="margin-bottom:14px;">
-        <h2 style="font-size:1.1rem;">My active &amp; past loans</h2>
-      </div>
-      <div id="loans-wrap">
-        <p class="text-soft">Loading…</p>
-      </div>
+    <div class="nav-actions">
+      <a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a>
+      <button class="menu-toggle" aria-expanded="false" aria-label="Menu">Menu</button>
     </div>
   </div>
-</div>
+  <div class="mobile-panel">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="membership.html">Membership</a></li>
+      <li><a href="savings.html">Savings</a></li>
+      <li><a href="loans.html">Loans</a></li>
+      <li><a href="governance.html">Governance</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="news.html">News</a></li>
+      <li><a href="contact.html">Contact</a></li>
+        <li><a href="portal/login.html">Login</a></li>
+      <li><a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a></li>
+    </ul>
+  </div>
+</header>
 
-<div id="agreement-print-area"></div>
+<section class="page-hero">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Loans</div>
+    <h1>Loan products</h1>
+    <p>Credit sized against your shares and savings, with transparent, Board-reviewed terms.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="grid grid-2">
+      <div class="product-panel">
+        <h3>Ordinary Loan</h3>
+        <p class="text-soft">Our standard, longer-term member loan.</p>
+        <ul>
+          <li>Sized against shares, savings and repayment capacity</li>
+          <li>Rate and maximum term set by the Board, reviewed periodically</li>
+          <li>Guarantor and/or collateral required depending on amount</li>
+        </ul>
+      </div>
+      <div class="product-panel">
+        <h3>Emergency Loan</h3>
+        <p class="text-soft">Faster access for urgent, unplanned needs.</p>
+        <ul>
+          <li>Simplified appraisal for smaller amounts</li>
+          <li>Shorter repayment period</li>
+          <li>Still subject to eligibility and guarantor checks</li>
+        </ul>
+      </div>
+      <div class="product-panel">
+        <h3>Express Loan</h3>
+        <p class="text-soft">Quicker turnaround for established members.</p>
+        <ul>
+          <li>Streamlined for members with a clean repayment history</li>
+          <li>Capped at a lower maximum amount</li>
+        </ul>
+      </div>
+      <div class="product-panel">
+        <h3>Weekend Loan</h3>
+        <p class="text-soft">Short-term credit released ahead of the weekend.</p>
+        <ul>
+          <li>Very short repayment window</li>
+          <li>Modest amounts, fast processing</li>
+        </ul>
+      </div>
+    </div>
+    <p class="text-soft" style="margin-top:22px;font-size:0.88rem;">Exact interest rates, maximum amounts and fees for each product are set and periodically reviewed by the Board. Contact the Savings &amp; Credit Officer for current figures.</p>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Eligibility</span>
+      <h2>Who can apply</h2>
+    </div>
+    <ul style="padding-left:20px;columns:2;column-gap:40px;">
+      <li>Fully paid-up member</li>
+      <li>18 years or older, of sound mind</li>
+      <li>An active shareholder with appropriate shareholding</li>
+      <li>No outstanding loan of the same product</li>
+      <li>Good credit history</li>
+      <li>Guarantors who are not themselves defaulters</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">How it works</span>
+      <h2>From application to disbursement</h2>
+    </div>
+    <ul class="steps">
+      <li><h4>Apply</h4><p>Submit your loan application with the product, amount and purpose.</p></li>
+      <li><h4>Appraisal</h4><p>The Savings &amp; Credit Officer reviews your shares, savings, existing loans and repayment capacity.</p></li>
+      <li><h4>Guarantors &amp; security</h4><p>Guarantors confirm their commitment; any required collateral is verified.</p></li>
+      <li><h4>Approval</h4><p>Management approves within its limit, or the Credit Committee decides for larger amounts — with Credit Committee ratification either way.</p></li>
+      <li><h4>Agreement &amp; disbursement</h4><p>You sign the loan agreement, and funds are disbursed to your savings account.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section section-indigo">
+  <div class="wrap center">
+    <h2>Not yet a member?</h2>
+    <p style="max-width:56ch;margin:0 auto 26px;color:var(--stone);">Membership is the first step before you can apply for a loan.</p>
+    <a href="membership.html#apply" class="btn btn-gold">Apply for membership</a>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <h4>SODIS-SACCO</h4>
+        <p style="color:var(--stone);font-size:0.9rem;max-width:40ch;">Soroti District Local Government Staff Cooperative Savings and Credit Society Limited. Registration 9020/RCS.</p>
+        <p style="color:var(--stone);font-size:0.9rem;">Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda.</p>
+      </div>
+      <div>
+        <h4>Quick links</h4>
+        <ul>
+          <li><a href="about.html">About us</a></li>
+          <li><a href="membership.html">Membership</a></li>
+          <li><a href="governance.html">Governance</a></li>
+          <li><a href="resources.html">Resources</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Get in touch</h4>
+        <ul>
+          <li><a href="contact.html">Contact us</a></li>
+          <li><a href="news.html">News &amp; events</a></li>
+          <li><a href="admin/login.html">Staff Login</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> SODIS-SACCO. All rights reserved.</span>
+      <span>Registration 9020/RCS</span>
+    </div>
+  </div>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/config.js"></script>
-<script src="js/portal.js"></script>
-<script>
-let currentMember = null;
-const selectedGuarantors = { 1: null, 2: null }; // { membershipNumber, fullName, memberId }
-
-document.getElementById('toggle-apply-btn').addEventListener('click', () => {
-  const panel = document.getElementById('apply-panel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  if (panel.style.display === 'block') panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-});
-
-document.getElementById('has-collateral').addEventListener('change', (e) => {
-  document.getElementById('collateral-fields').style.display = e.target.checked ? 'block' : 'none';
-});
-
-// ---- Guarantor autocomplete ----
-let searchDebounce = null;
-document.querySelectorAll('.guarantor-picker').forEach(picker => {
-  const slot = picker.getAttribute('data-slot');
-  const input = picker.querySelector('.guarantor-search');
-  const resultsBox = picker.querySelector('.guarantor-results');
-
-  input.addEventListener('input', () => {
-    selectedGuarantors[slot] = null;
-    clearTimeout(searchDebounce);
-    const term = input.value.trim();
-    if (term.length < 2) { resultsBox.innerHTML = ''; return; }
-
-    searchDebounce = setTimeout(async () => {
-      const { data, error } = await supabaseClient.rpc('search_members_for_guarantor', { search_term: term });
-      if (error || !data) { resultsBox.innerHTML = ''; return; }
-
-      const filtered = data.filter(m => m.membership_number !== currentMember.membership_number);
-      if (filtered.length === 0) {
-        resultsBox.innerHTML = '<div class="guarantor-result-item text-soft">No matching members found.</div>';
-        return;
-      }
-
-      resultsBox.innerHTML = filtered.map(m =>
-        `<div class="guarantor-result-item" data-name="${escapeHtml(m.full_name)}" data-number="${escapeHtml(m.membership_number)}" data-id="${m.id}">
-          ${escapeHtml(m.full_name)} <span class="text-soft">(${escapeHtml(m.membership_number)})</span>
-        </div>`
-      ).join('');
-
-      resultsBox.querySelectorAll('.guarantor-result-item[data-id]').forEach(item => {
-        item.addEventListener('click', () => {
-          selectedGuarantors[slot] = {
-            memberId: item.getAttribute('data-id'),
-            fullName: item.getAttribute('data-name'),
-            membershipNumber: item.getAttribute('data-number')
-          };
-          input.value = `${item.getAttribute('data-name')} (${item.getAttribute('data-number')})`;
-          resultsBox.innerHTML = '';
-        });
-      });
-    }, 300);
-  });
-});
-
-document.getElementById('apply-form').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const btn = document.getElementById('submit-btn');
-  const msg = document.getElementById('form-msg');
-  msg.className = 'form-msg';
-
-  const payload = {
-    member_id: currentMember.id,
-    product: document.getElementById('product').value,
-    amount: Number(document.getElementById('amount').value),
-    period_months: Number(document.getElementById('period_months').value),
-    purpose: document.getElementById('purpose').value.trim()
-  };
-
-  btn.disabled = true;
-  btn.textContent = 'Submitting…';
-
-  const { data: newApp, error } = await supabaseClient.from('loan_applications').insert([payload]).select().single();
-
-  if (error || !newApp) {
-    msg.textContent = 'Could not submit your application. Please try again.';
-    msg.className = 'form-msg error show';
-    btn.disabled = false;
-    btn.textContent = 'Submit application';
-    return;
-  }
-
-  for (const slot of [1, 2]) {
-    const g = selectedGuarantors[slot];
-    if (g) {
-      await supabaseClient.from('loan_guarantors').insert([{
-        loan_application_id: newApp.id,
-        guarantor_member_id: g.memberId
-      }]);
-    }
-  }
-
-  if (document.getElementById('has-collateral').checked) {
-    await supabaseClient.from('loan_collateral').insert([{
-      loan_application_id: newApp.id,
-      collateral_type: document.getElementById('collateral_type').value,
-      description: document.getElementById('collateral_description').value.trim(),
-      estimated_value: Number(document.getElementById('collateral_value').value) || null
-    }]);
-  }
-
-  msg.textContent = `Application submitted — reference ${newApp.application_number}. You can track its status below.`;
-  msg.className = 'form-msg success show';
-  document.getElementById('apply-form').reset();
-  document.getElementById('collateral-fields').style.display = 'none';
-  selectedGuarantors[1] = null;
-  selectedGuarantors[2] = null;
-  document.querySelectorAll('.guarantor-results').forEach(r => r.innerHTML = '');
-  await loadApplications();
-
-  btn.disabled = false;
-  btn.textContent = 'Submit application';
-});
-
-function appStatusBadge(status) {
-  if (status === 'Disbursed') return '<span class="badge badge-green">Disbursed</span>';
-  if (status === 'Rejected') return '<span class="badge" style="background:var(--brick);color:var(--white);">Rejected</span>';
-  if (status === 'Awaiting Signatures') return '<span class="badge" style="background:var(--indigo);color:var(--white);">Awaiting signatures</span>';
-  return '<span class="badge">Under review</span>';
-}
-
-async function loadGuaranteeRequests() {
-  const wrap = document.getElementById('guarantee-requests-wrap');
-  const { data: reqs, error } = await supabaseClient
-    .from('loan_guarantors')
-    .select('*, loan_applications(application_number, product, amount, purpose, members(full_name, membership_number))')
-    .eq('guarantor_member_id', currentMember.id)
-    .order('requested_at', { ascending: false });
-
-  if (error || !reqs || reqs.length === 0) {
-    wrap.innerHTML = '<div class="empty-state">No guarantee requests at this time.</div>';
-    return;
-  }
-
-  wrap.innerHTML = reqs.map(r => {
-    const app = r.loan_applications || {};
-    const applicant = app.members || {};
-    const statusBadge = r.status === 'Accepted' ? '<span class="badge badge-green">Signed as guarantor</span>'
-      : r.status === 'Declined' ? '<span class="badge" style="background:var(--brick);color:var(--white);">Declined</span>'
-      : '<span class="badge">Awaiting your response</span>';
-
-    return `
-      <div class="app-card">
-        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-          <h3>${escapeHtml(applicant.full_name || 'A member')} (${escapeHtml(applicant.membership_number || '—')})</h3>
-          ${statusBadge}
-        </div>
-        <div class="app-meta">
-          <div><span class="k">Application:</span> ${escapeHtml(app.application_number || '—')}</div>
-          <div><span class="k">Loan product:</span> ${escapeHtml(app.product || '—')}</div>
-          <div><span class="k">Amount:</span> ${formatUGX(app.amount)}</div>
-        </div>
-        <p class="text-soft" style="margin:8px 0 0;font-size:0.88rem;">${escapeHtml(app.purpose || '')}</p>
-        ${r.status === 'Pending' ? `
-          <div class="sign-box">
-            <label for="gname-${r.id}">Type your full name to sign as guarantor</label>
-            <input type="text" class="guarantor-sign-name" id="gname-${r.id}" placeholder="${escapeHtml(currentMember.full_name)}">
-            <div style="display:flex;gap:10px;">
-              <button class="btn btn-green btn-sm guarantee-accept" data-id="${r.id}">Sign &amp; accept</button>
-              <button class="btn btn-danger btn-sm guarantee-decline" data-id="${r.id}">Decline</button>
-            </div>
-          </div>
-        ` : r.status === 'Accepted' ? `<p class="text-soft" style="margin-top:8px;font-size:0.85rem;">Signed as "${escapeHtml(r.guarantor_signature_name)}" on ${formatDate(r.guarantor_signed_at)}.</p>` : ''}
-      </div>
-    `;
-  }).join('');
-
-  wrap.querySelectorAll('.guarantee-accept').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const name = document.getElementById('gname-' + id).value.trim();
-      if (!name) { alert('Please type your full name to sign as guarantor.'); return; }
-      await supabaseClient.from('loan_guarantors').update({
-        status: 'Accepted', responded_at: new Date().toISOString(),
-        guarantor_signature_name: name, guarantor_signed_at: new Date().toISOString()
-      }).eq('id', id);
-      loadGuaranteeRequests();
-    });
-  });
-  wrap.querySelectorAll('.guarantee-decline').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      await supabaseClient.from('loan_guarantors').update({ status: 'Declined', responded_at: new Date().toISOString() }).eq('id', btn.getAttribute('data-id'));
-      loadGuaranteeRequests();
-    });
-  });
-}
-
-async function loadApplications() {
-  const wrap = document.getElementById('applications-wrap');
-  const { data: apps, error } = await supabaseClient
-    .from('loan_applications')
-    .select('*')
-    .eq('member_id', currentMember.id)
-    .order('submitted_at', { ascending: false });
-
-  if (error || !apps || apps.length === 0) {
-    wrap.innerHTML = '<div class="empty-state">You have not applied for a loan yet.</div>';
-    return;
-  }
-
-  wrap.innerHTML = apps.map(a => `
-    <div class="app-card ${a.status === 'Disbursed' ? 'status-approved' : a.status === 'Rejected' ? 'status-rejected' : ''}">
-      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-        <h3>${escapeHtml(a.product)} <span class="text-soft" style="font-size:0.8rem;font-weight:400;">${escapeHtml(a.application_number || '')}</span></h3>
-        ${appStatusBadge(a.status)}
-      </div>
-      <div class="app-meta">
-        <div><span class="k">Amount requested:</span> ${formatUGX(a.amount)}</div>
-        <div><span class="k">Period:</span> ${a.period_months} months</div>
-        <div><span class="k">Submitted:</span> ${formatDate(a.submitted_at)}</div>
-        ${a.decided_at ? `<div><span class="k">Decided:</span> ${formatDate(a.decided_at)}</div>` : ''}
-      </div>
-      <p class="text-soft" style="margin:8px 0 0;font-size:0.88rem;">${escapeHtml(a.purpose)}</p>
-      ${a.decision_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note from SODIS-SACCO:</strong> ${escapeHtml(a.decision_notes)}</p>` : ''}
-    </div>
-  `).join('');
-}
-
-function printText(text) {
-  document.getElementById('agreement-print-area').innerHTML =
-    `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
-  document.body.classList.add('print-agreement-mode');
-  window.print();
-}
-window.addEventListener('afterprint', () => document.body.classList.remove('print-agreement-mode'));
-
-async function loadAgreements() {
-  const wrap = document.getElementById('agreements-wrap');
-  const { data: agreements, error } = await supabaseClient
-    .from('loan_agreements')
-    .select('*')
-    .eq('member_id', currentMember.id)
-    .order('created_at', { ascending: false });
-
-  if (error || !agreements || agreements.length === 0) {
-    wrap.innerHTML = '<div class="empty-state">No loan agreements yet.</div>';
-    return;
-  }
-
-  wrap.innerHTML = agreements.map(a => {
-    if (!a.member_signed_at) {
-      return `
-        <div class="app-card">
-          <h3>Loan agreement — action needed</h3>
-          <div class="agreement-doc">${escapeHtml(a.terms_summary)}</div>
-          <div class="sign-box">
-            <div class="agree-row">
-              <input type="checkbox" class="agree-check" id="agree-${a.id}">
-              <label for="agree-${a.id}" style="font-weight:400;margin:0;">I have read and agree to these terms.</label>
-            </div>
-            <label for="sign-name-${a.id}">Type your full name to sign</label>
-            <input type="text" class="sign-name" id="sign-name-${a.id}" placeholder="${escapeHtml(currentMember.full_name)}">
-            <button class="btn btn-green sign-btn" data-id="${a.id}">Sign agreement</button>
-          </div>
-        </div>
-      `;
-    } else if (!a.staff_signed_at) {
-      return `
-        <div class="app-card">
-          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-            <h3>Loan agreement — signed by you</h3>
-            <span class="badge" style="background:var(--indigo);color:var(--white);">Awaiting SACCO countersignature</span>
-          </div>
-          <p class="text-soft" style="margin-top:8px;">Signed by you as ${escapeHtml(a.member_signature_name)} on ${formatDate(a.member_signed_at)}. A SACCO officer still needs to countersign before disbursement.</p>
-          <button class="btn btn-outline-dark btn-sm print-agreement-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print</button>
-        </div>
-      `;
-    } else {
-      return `
-        <div class="app-card status-approved">
-          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-            <h3>Loan agreement — fully executed</h3>
-            <span class="badge badge-green">Signed by both parties</span>
-          </div>
-          <p class="text-soft" style="margin:8px 0 14px;">
-            You signed as ${escapeHtml(a.member_signature_name)} on ${formatDate(a.member_signed_at)}.<br>
-            SODIS-SACCO countersigned on ${formatDate(a.staff_signed_at)}.
-          </p>
-          <button class="btn btn-outline-dark btn-sm print-agreement-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print / Save copy</button>
-        </div>
-      `;
-    }
-  }).join('');
-
-  wrap.querySelectorAll('.print-agreement-btn').forEach(btn => {
-    btn.addEventListener('click', () => printText(decodeURIComponent(btn.getAttribute('data-text'))));
-  });
-
-  wrap.querySelectorAll('.sign-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const checked = document.getElementById('agree-' + id).checked;
-      const name = document.getElementById('sign-name-' + id).value.trim();
-      if (!checked || !name) {
-        alert('Please tick the agreement box and type your full name before signing.');
-        return;
-      }
-      btn.disabled = true;
-      btn.textContent = 'Signing…';
-      await supabaseClient.from('loan_agreements').update({
-        member_signed_at: new Date().toISOString(),
-        member_signature_name: name
-      }).eq('id', id);
-      loadAgreements();
-    });
-  });
-}
-
-async function loadLoans() {
-  const { data: loans } = await supabaseClient
-    .from('loans')
-    .select('*')
-    .eq('member_id', currentMember.id)
-    .order('disbursed_at', { ascending: false });
-
-  const wrap = document.getElementById('loans-wrap');
-
-  if (!loans || loans.length === 0) {
-    wrap.innerHTML = '<div class="empty-state">No disbursed loans on record yet.</div>';
-    return;
-  }
-
-  const statusBadge = (status) => {
-    if (status === 'Cleared') return '<span class="badge badge-green">Cleared</span>';
-    if (status === 'Overdue') return '<span class="badge" style="background:var(--brick);color:var(--white);">Overdue</span>';
-    return '<span class="badge">Active</span>';
-  };
-
-  const cards = await Promise.all(loans.map(async (loan) => {
-    const { data: schedule } = await supabaseClient
-      .from('loan_repayment_schedule')
-      .select('*')
-      .eq('loan_id', loan.id)
-      .order('installment_number', { ascending: true });
-
-    const { data: repayments } = await supabaseClient
-      .from('loan_repayments')
-      .select('*')
-      .eq('loan_id', loan.id)
-      .order('txn_date', { ascending: false });
-
-    const scheduleRows = (schedule || []).map(s => `
-      <tr>
-        <td>#${s.installment_number}</td>
-        <td>${formatDate(s.due_date)}</td>
-        <td class="num">${formatUGX(s.principal_portion)}</td>
-        <td class="num">${formatUGX(s.interest_portion)}</td>
-        <td class="num">${formatUGX(s.amount)}</td>
-        <td>${s.status}</td>
-      </tr>
-    `).join('');
-
-    const repaymentRows = (repayments || []).map(r => `
-      <tr>
-        <td>${formatDate(r.txn_date)}</td>
-        <td class="num">${formatUGX(r.amount)}</td>
-        <td class="num">${formatUGX(r.principal_portion)}</td>
-        <td class="num">${formatUGX(r.interest_portion)}</td>
-      </tr>
-    `).join('');
-
-    return `
-      <div class="loan-card">
-        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
-          <h3>${escapeHtml(loan.product || 'Loan')}</h3>
-          ${statusBadge(loan.status)}
-        </div>
-        <div class="loan-meta">
-          <div class="item"><div class="label">Principal</div><div class="value">${formatUGX(loan.principal)}</div></div>
-          <div class="item"><div class="label">Outstanding</div><div class="value">${formatUGX(loan.outstanding_balance)}</div></div>
-          <div class="item"><div class="label">Disbursed</div><div class="value" style="font-size:0.95rem;">${formatDate(loan.disbursed_at)}</div></div>
-          <div class="item"><div class="label">Next installment</div><div class="value" style="font-size:0.95rem;">${loan.next_installment_amount ? formatUGX(loan.next_installment_amount) : '—'}</div></div>
-        </div>
-        ${scheduleRows ? `
-          <hr class="ledger-rule" style="margin:18px 0;">
-          <div style="font-size:0.88rem;font-weight:600;color:var(--indigo);margin-bottom:8px;">Repayment schedule</div>
-          <table class="data-table">
-            <thead><tr><th>#</th><th>Due date</th><th style="text-align:right;">Principal</th><th style="text-align:right;">Interest</th><th style="text-align:right;">Total</th><th>Status</th></tr></thead>
-            <tbody>${scheduleRows}</tbody>
-          </table>
-        ` : ''}
-        ${repaymentRows ? `
-          <hr class="ledger-rule" style="margin:18px 0;">
-          <div style="font-size:0.88rem;font-weight:600;color:var(--indigo);margin-bottom:8px;">Repayment history</div>
-          <table class="data-table">
-            <thead><tr><th>Date</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Principal</th><th style="text-align:right;">Interest</th></tr></thead>
-            <tbody>${repaymentRows}</tbody>
-          </table>
-        ` : ''}
-      </div>
-    `;
-  }));
-
-  wrap.innerHTML = cards.join('');
-}
-
-(async () => {
-  currentMember = await requirePortalAuth();
-  if (!currentMember) return;
-  await loadGuaranteeRequests();
-  await loadApplications();
-  await loadAgreements();
-  await loadLoans();
-})();
-</script>
+<script src="js/config.js"></script>
+<script src="js/site.js"></script>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 </body>
 </html>
