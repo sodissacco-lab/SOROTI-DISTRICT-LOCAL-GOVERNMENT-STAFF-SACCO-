@@ -49,7 +49,7 @@
 
     <div class="portal-content">
       <h1 style="font-size:1.4rem;">Loan Applications</h1>
-      <p class="text-soft" style="margin-bottom:24px;">Review requests, then approve to generate an agreement — disbursement happens once both parties sign.</p>
+      <p class="text-soft" style="margin-bottom:24px;">Review requests, set the interest rate, and approve to generate an agreement — disbursement and the repayment schedule are created once both parties sign.</p>
 
       <div id="msg-banner" class="form-msg"></div>
 
@@ -88,7 +88,7 @@
 <script>
 let currentAdmin = null;
 
-function printAgreement(text) {
+function printText(text) {
   document.getElementById('agreement-print-area').innerHTML =
     `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
   document.body.classList.add('print-agreement-mode');
@@ -96,19 +96,72 @@ function printAgreement(text) {
 }
 window.addEventListener('afterprint', () => document.body.classList.remove('print-agreement-mode'));
 
-function buildAgreementText(app, member, guarantors, collateral) {
+function addMonths(dateStr, months) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const originalDay = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(originalDay, daysInTargetMonth));
+  return d.toISOString().slice(0, 10);
+}
+
+function buildApplicationPrintText(app, member, guarantors, collateral) {
   const guarantorLines = (guarantors && guarantors.length)
-    ? guarantors.map(g => `- ${g.members.full_name} (Membership No: ${g.members.membership_number}) — ${g.status}`).join('\n')
+    ? guarantors.map(g => `- ${g.members.full_name} (${g.members.membership_number}) — ${g.status}${g.guarantor_signature_name ? `, signed as "${g.guarantor_signature_name}" on ${formatDate(g.guarantor_signed_at)}` : ''}`).join('\n')
+    : 'None named';
+
+  const collateralLines = (collateral && collateral.length)
+    ? collateral.map(c => `- ${c.collateral_type}: ${c.description} (Est. UGX ${Number(c.estimated_value || 0).toLocaleString()})`).join('\n')
+    : 'None';
+
+  return `SODIS-SACCO LOAN APPLICATION FORM
+
+Application No: ${app.application_number}
+Status: ${app.status}
+Date Submitted: ${formatDate(app.submitted_at)}
+
+APPLICANT
+Name: ${member.full_name}
+Membership No: ${member.membership_number}
+Phone: ${member.phone || ''}
+
+LOAN DETAILS
+Product: ${app.product}
+Amount Requested: UGX ${Number(app.amount).toLocaleString()}
+Repayment Period: ${app.period_months} months
+Purpose: ${app.purpose}
+
+GUARANTORS
+${guarantorLines}
+
+COLLATERAL
+${collateralLines}
+
+${app.decision_notes ? `DECISION NOTE\n${app.decision_notes}\n` : ''}
+──────────────────────────────
+Officer signature: ______________________   Date: ____________
+
+Membership Officer / Credit Officer review copy — for internal use.`;
+}
+
+function buildAgreementText(app, member, guarantors, collateral, interestRate, totalInterest, monthlyInstallment) {
+  const guarantorLines = (guarantors && guarantors.length)
+    ? guarantors.map(g => `- ${g.members.full_name} (Membership No: ${g.members.membership_number}) — ${g.status}${g.guarantor_signature_name ? `, signed as "${g.guarantor_signature_name}" on ${formatDate(g.guarantor_signed_at)}` : ''}`).join('\n')
     : 'None';
 
   const collateralLines = (collateral && collateral.length)
     ? collateral.map(c => `- ${c.collateral_type}: ${c.description} (Estimated value: UGX ${Number(c.estimated_value || 0).toLocaleString()})`).join('\n')
     : 'None';
 
+  const totalRepayable = Number(app.amount) + Number(totalInterest);
+
   return `LOAN AGREEMENT — SODIS-SACCO
 
 Soroti District Local Government Staff Cooperative Savings and Credit Society Limited
 Registration 9020/RCS
+
+Application No: ${app.application_number}
 
 Borrower: ${member.full_name}
 Membership No: ${member.membership_number}
@@ -117,6 +170,14 @@ Loan Product: ${app.product}
 Principal Amount: UGX ${Number(app.amount).toLocaleString()}
 Repayment Period: ${app.period_months} months
 Purpose: ${app.purpose}
+
+INTEREST & REPAYMENT
+Monthly Interest Rate: ${interestRate}%
+Total Interest Payable: UGX ${Number(totalInterest).toLocaleString()}
+Total Amount Repayable: UGX ${totalRepayable.toLocaleString()}
+Estimated Monthly Installment: UGX ${Number(monthlyInstallment).toLocaleString()}
+(A full month-by-month repayment schedule will be generated and made
+available in your portal once this loan is disbursed.)
 
 Guarantors:
 ${guarantorLines}
@@ -131,11 +192,10 @@ officer, and after all guarantor acceptances and collateral verifications
 (where applicable) are complete.
 
 Repayment Conditions:
-The borrower agrees to repay the principal amount plus applicable interest
-and fees, as set by the SODIS-SACCO Board, according to the repayment
-schedule to be issued upon disbursement. Repayment may be made by salary
-deduction, direct deposit, standing order, or account debit as provided in
-the Lending & Credit Policy.
+The borrower agrees to repay the principal amount plus the interest set out
+above, according to the repayment schedule issued upon disbursement.
+Repayment may be made by salary deduction, direct deposit, standing order,
+or account debit as provided in the Lending & Credit Policy.
 
 By signing below, the borrower and the authorized SACCO officer confirm
 their agreement to these terms.`;
@@ -164,11 +224,15 @@ async function loadPendingSignatures() {
         <div class="agreement-doc" style="margin-bottom:14px;">${escapeHtml(a.terms_summary)}</div>
         <div class="app-actions">
           <button class="btn btn-green btn-sm countersign-btn" data-id="${a.id}">Countersign &amp; disburse</button>
-          <button class="btn btn-outline-dark btn-sm print-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print</button>
+          <button class="btn btn-outline-dark btn-sm print-text-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print</button>
         </div>
       </div>
     `;
   }).join('');
+
+  wrap.querySelectorAll('.print-text-btn').forEach(btn => {
+    btn.addEventListener('click', () => printText(decodeURIComponent(btn.getAttribute('data-text'))));
+  });
 
   wrap.querySelectorAll('.countersign-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -176,9 +240,6 @@ async function loadPendingSignatures() {
       btn.textContent = 'Processing…';
       await countersignAgreement(btn.getAttribute('data-id'));
     });
-  });
-  wrap.querySelectorAll('.print-btn').forEach(btn => {
-    btn.addEventListener('click', () => printAgreement(decodeURIComponent(btn.getAttribute('data-text'))));
   });
 }
 
@@ -201,6 +262,8 @@ async function countersignAgreement(agreementId) {
     .eq('id', agreement.loan_application_id)
     .single();
 
+  const disbursedAt = new Date().toISOString().slice(0, 10);
+
   const { data: newLoan, error: loanError } = await supabaseClient
     .from('loans')
     .insert([{
@@ -209,7 +272,9 @@ async function countersignAgreement(agreementId) {
       principal: app.amount,
       outstanding_balance: app.amount,
       status: 'Active',
-      disbursed_at: new Date().toISOString().slice(0, 10)
+      disbursed_at: disbursedAt,
+      next_installment_amount: agreement.monthly_installment,
+      next_installment_date: addMonths(disbursedAt, 1)
     }])
     .select()
     .single();
@@ -219,6 +284,27 @@ async function countersignAgreement(agreementId) {
     loadPendingSignatures();
     return;
   }
+
+  // Generate the repayment schedule — flat-rate, evenly split principal
+  // and interest across the agreed period.
+  const months = app.period_months;
+  const principalPerInstallment = Number(app.amount) / months;
+  const interestPerInstallment = Number(agreement.total_interest) / months;
+  const amountPerInstallment = principalPerInstallment + interestPerInstallment;
+
+  const scheduleRows = [];
+  for (let i = 1; i <= months; i++) {
+    scheduleRows.push({
+      loan_id: newLoan.id,
+      installment_number: i,
+      due_date: addMonths(disbursedAt, i),
+      amount: Math.round(amountPerInstallment),
+      principal_portion: Math.round(principalPerInstallment),
+      interest_portion: Math.round(interestPerInstallment),
+      status: 'Pending'
+    });
+  }
+  await supabaseClient.from('loan_repayment_schedule').insert(scheduleRows);
 
   await supabaseClient.from('loan_agreements').update({
     staff_signed_at: new Date().toISOString(),
@@ -232,7 +318,7 @@ async function countersignAgreement(agreementId) {
     loan_id: newLoan.id
   }).eq('id', agreement.loan_application_id);
 
-  showMsg('Countersigned. The loan is now active and visible in the member\'s portal.', 'success');
+  showMsg('Countersigned. The loan is active, and the repayment schedule is now visible in the member\'s portal.', 'success');
   loadPendingSignatures();
   loadApplications();
 }
@@ -265,34 +351,31 @@ async function loadApplications() {
     const statusClass = app.status === 'Disbursed' ? 'status-approved' : app.status === 'Rejected' ? 'status-rejected' : '';
     const isPending = app.status === 'Submitted';
 
+    const { data: guarantors } = await supabaseClient
+      .from('loan_guarantors')
+      .select('*, members(full_name, membership_number)')
+      .eq('loan_application_id', app.id);
+
+    const { data: collateral } = await supabaseClient
+      .from('loan_collateral')
+      .select('*')
+      .eq('loan_application_id', app.id);
+
     let guarantorHtml = '';
     let collateralHtml = '';
-
-    if (isPending) {
-      const { data: guarantors } = await supabaseClient
-        .from('loan_guarantors')
-        .select('*, members(full_name, membership_number)')
-        .eq('loan_application_id', app.id);
-
-      const { data: collateral } = await supabaseClient
-        .from('loan_collateral')
-        .select('*')
-        .eq('loan_application_id', app.id);
-
-      if (guarantors && guarantors.length) {
-        guarantorHtml = '<p style="margin:10px 0 0;font-size:0.88rem;"><span class="text-soft">Guarantors:</span> ' +
-          guarantors.map(g => `${escapeHtml(g.members.full_name)} (${g.status})`).join(', ') + '</p>';
-      }
-      if (collateral && collateral.length) {
-        collateralHtml = '<p style="margin:6px 0 0;font-size:0.88rem;"><span class="text-soft">Collateral:</span> ' +
-          collateral.map(c => `${escapeHtml(c.collateral_type)} — ${escapeHtml(c.description)}`).join('; ') + '</p>';
-      }
+    if (guarantors && guarantors.length) {
+      guarantorHtml = '<p style="margin:10px 0 0;font-size:0.88rem;"><span class="text-soft">Guarantors:</span> ' +
+        guarantors.map(g => `${escapeHtml(g.members.full_name)} (${g.status}${g.guarantor_signature_name ? ', signed' : ''})`).join(', ') + '</p>';
+    }
+    if (collateral && collateral.length) {
+      collateralHtml = '<p style="margin:6px 0 0;font-size:0.88rem;"><span class="text-soft">Collateral:</span> ' +
+        collateral.map(c => `${escapeHtml(c.collateral_type)} — ${escapeHtml(c.description)}`).join('; ') + '</p>';
     }
 
     return `
       <div class="app-card ${statusClass}" data-id="${app.id}">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-          <h3>${escapeHtml(member.full_name || 'Unknown member')} — ${escapeHtml(app.product)}</h3>
+          <h3>${escapeHtml(member.full_name || 'Unknown member')} — ${escapeHtml(app.product)} <span class="text-soft" style="font-size:0.8rem;font-weight:400;">${escapeHtml(app.application_number || '')}</span></h3>
           ${appBadge(app.status)}
         </div>
         <div class="app-meta">
@@ -308,27 +391,52 @@ async function loadApplications() {
         ${collateralHtml}
         ${isPending ? `
           <div class="app-actions" style="flex-direction:column;align-items:stretch;">
+            <div class="field-row two" style="margin-bottom:10px;">
+              <div class="field" style="margin-bottom:0;">
+                <label style="font-size:0.82rem;">Monthly interest rate (%) *</label>
+                <input type="number" step="0.1" min="0" class="interest-rate-input" placeholder="e.g. 12" style="padding:9px 11px;border:1px solid var(--line);border-radius:3px;width:100%;">
+              </div>
+            </div>
             <textarea class="decision-notes" placeholder="Optional note to the member" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" rows="2"></textarea>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-green btn-sm approve-btn">Approve &amp; Generate Agreement</button>
               <button class="btn btn-danger btn-sm reject-btn">Reject</button>
+              <button class="btn btn-outline-dark btn-sm print-app-btn" data-text="${encodeURIComponent(buildApplicationPrintText(app, member, guarantors, collateral))}">Print Application</button>
             </div>
           </div>
-        ` : app.decision_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note sent:</strong> ${escapeHtml(app.decision_notes)}</p>` : ''}
+        ` : `
+          <div class="app-actions">
+            <button class="btn btn-outline-dark btn-sm print-app-btn" data-text="${encodeURIComponent(buildApplicationPrintText(app, member, guarantors, collateral))}">Print Application</button>
+          </div>
+          ${app.decision_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note sent:</strong> ${escapeHtml(app.decision_notes)}</p>` : ''}
+        `}
       </div>
     `;
   }));
 
   wrap.innerHTML = cards.join('');
 
+  wrap.querySelectorAll('.print-app-btn').forEach(btn => {
+    btn.addEventListener('click', () => printText(decodeURIComponent(btn.getAttribute('data-text'))));
+  });
+
   wrap.querySelectorAll('.approve-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const card = btn.closest('.app-card');
       const id = card.getAttribute('data-id');
       const notes = card.querySelector('.decision-notes').value.trim();
+      const rateInput = card.querySelector('.interest-rate-input');
+      const rate = Number(rateInput.value);
+
+      if (!rateInput.value || isNaN(rate) || rate < 0) {
+        showMsg('Please enter an interest rate before approving.', 'error');
+        rateInput.focus();
+        return;
+      }
+
       btn.disabled = true;
       btn.textContent = 'Generating…';
-      await approveAndGenerateAgreement(id, notes);
+      await approveAndGenerateAgreement(id, notes, rate);
     });
   });
 
@@ -359,7 +467,7 @@ function appBadge(status) {
   return '<span class="badge">Submitted</span>';
 }
 
-async function approveAndGenerateAgreement(applicationId, notes) {
+async function approveAndGenerateAgreement(applicationId, notes, interestRate) {
   const { data: app, error: fetchError } = await supabaseClient
     .from('loan_applications')
     .select('*, members(full_name, membership_number)')
@@ -382,12 +490,18 @@ async function approveAndGenerateAgreement(applicationId, notes) {
     .select('*')
     .eq('loan_application_id', applicationId);
 
-  const termsText = buildAgreementText(app, app.members, guarantors, collateral);
+  const totalInterest = Number(app.amount) * (interestRate / 100) * app.period_months;
+  const monthlyInstallment = (Number(app.amount) + totalInterest) / app.period_months;
+
+  const termsText = buildAgreementText(app, app.members, guarantors, collateral, interestRate, totalInterest, monthlyInstallment);
 
   const { error: agreementError } = await supabaseClient.from('loan_agreements').insert([{
     loan_application_id: applicationId,
     member_id: app.member_id,
-    terms_summary: termsText
+    terms_summary: termsText,
+    interest_rate: interestRate,
+    total_interest: totalInterest,
+    monthly_installment: monthlyInstallment
   }]);
 
   if (agreementError) {
