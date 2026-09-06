@@ -81,3 +81,11 @@ function wirePortalChrome() {
 }
 
 document.addEventListener('DOMContentLoaded', wirePortalChrome);
+
+// Register the service worker (one level up, since portal/ pages
+// are nested) so the site can be installed as an app
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(() => {});
+  });
+}
