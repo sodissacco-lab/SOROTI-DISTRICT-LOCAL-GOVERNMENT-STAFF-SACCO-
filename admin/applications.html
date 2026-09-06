@@ -116,7 +116,6 @@ async function loadApplications() {
         </div>
         ${isPending ? `
           <div class="app-actions">
-            <input type="text" placeholder="Membership number e.g. SODIS-000123" class="membership-number-input">
             <button class="btn btn-green btn-sm approve-btn">Approve</button>
             <button class="btn btn-danger btn-sm reject-btn">Reject</button>
           </div>
@@ -130,19 +129,11 @@ async function loadApplications() {
     btn.addEventListener('click', async () => {
       const card = btn.closest('.app-card');
       const id = card.getAttribute('data-id');
-      const numberInput = card.querySelector('.membership-number-input');
-      const membershipNumber = numberInput.value.trim();
-
-      if (!membershipNumber) {
-        showMsg('Please enter a membership number before approving.', 'error');
-        numberInput.focus();
-        return;
-      }
 
       btn.disabled = true;
       btn.textContent = 'Approving…';
 
-      await approveApplication(id, membershipNumber);
+      await approveApplication(id);
     });
   });
 
@@ -170,7 +161,7 @@ async function loadApplications() {
   });
 }
 
-async function approveApplication(applicationId, membershipNumber) {
+async function approveApplication(applicationId) {
   const { data: app, error: fetchError } = await supabaseClient
     .from('membership_applications')
     .select('*')
@@ -179,6 +170,18 @@ async function approveApplication(applicationId, membershipNumber) {
 
   if (fetchError || !app) {
     showMsg('Could not find this application.', 'error');
+    loadApplications();
+    return;
+  }
+
+  // Ask the database for the next sequential membership number
+  // (SODIS-000001, SODIS-000002, ...) — generated server-side so
+  // two approvals can never collide on the same number.
+  const { data: membershipNumber, error: numberError } = await supabaseClient
+    .rpc('next_membership_number');
+
+  if (numberError || !membershipNumber) {
+    showMsg('Could not generate a membership number: ' + (numberError ? numberError.message : 'unknown error'), 'error');
     loadApplications();
     return;
   }
@@ -209,7 +212,7 @@ async function approveApplication(applicationId, membershipNumber) {
   if (updateError) {
     showMsg('Member record created, but the application status could not be updated.', 'error');
   } else {
-    showMsg(`Approved. Member record created for ${app.full_name} (${membershipNumber}). Next: create their login in Authentication → Users, then paste their User UID into this member's auth_user_id field in the members table.`, 'success');
+    showMsg(`Approved. Membership number ${membershipNumber} assigned to ${app.full_name}. Next: create their login in Authentication → Users, then paste their User UID into this member's auth_user_id field in the members table.`, 'success');
   }
 
   loadApplications();
