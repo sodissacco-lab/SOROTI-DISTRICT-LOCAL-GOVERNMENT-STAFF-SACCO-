@@ -24,6 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSiteStats();
 });
 
+// Register the service worker so the site can be installed as an app
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 // Formats a number as UGX currency, abbreviated for large figures
 function formatUGX(amount) {
   if (amount === null || amount === undefined) return '—';
