@@ -49,14 +49,25 @@
 
     <div class="portal-content">
       <h1 style="font-size:1.4rem;">Loan Applications</h1>
-      <p class="text-soft" style="margin-bottom:24px;">Review loan requests submitted by members through the portal.</p>
+      <p class="text-soft" style="margin-bottom:24px;">Review requests, then approve to generate an agreement — disbursement happens once both parties sign.</p>
 
       <div id="msg-banner" class="form-msg"></div>
 
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Agreements awaiting SACCO countersignature</h2>
+      </div>
+      <div id="pending-signature-wrap" style="margin-bottom:36px;">
+        <p class="text-soft">Loading…</p>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Applications</h2>
+      </div>
       <div style="margin-bottom:20px;">
         <select id="filter-status" style="padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
           <option value="Submitted">Pending review</option>
-          <option value="Approved">Approved</option>
+          <option value="Awaiting Signatures">Awaiting signatures</option>
+          <option value="Disbursed">Disbursed</option>
           <option value="Rejected">Rejected</option>
           <option value="all">All applications</option>
         </select>
@@ -69,10 +80,163 @@
   </div>
 </div>
 
+<div id="agreement-print-area"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/config.js"></script>
 <script src="js/admin.js"></script>
 <script>
+let currentAdmin = null;
+
+function printAgreement(text) {
+  document.getElementById('agreement-print-area').innerHTML =
+    `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
+  document.body.classList.add('print-agreement-mode');
+  window.print();
+}
+window.addEventListener('afterprint', () => document.body.classList.remove('print-agreement-mode'));
+
+function buildAgreementText(app, member, guarantors, collateral) {
+  const guarantorLines = (guarantors && guarantors.length)
+    ? guarantors.map(g => `- ${g.members.full_name} (Membership No: ${g.members.membership_number}) — ${g.status}`).join('\n')
+    : 'None';
+
+  const collateralLines = (collateral && collateral.length)
+    ? collateral.map(c => `- ${c.collateral_type}: ${c.description} (Estimated value: UGX ${Number(c.estimated_value || 0).toLocaleString()})`).join('\n')
+    : 'None';
+
+  return `LOAN AGREEMENT — SODIS-SACCO
+
+Soroti District Local Government Staff Cooperative Savings and Credit Society Limited
+Registration 9020/RCS
+
+Borrower: ${member.full_name}
+Membership No: ${member.membership_number}
+
+Loan Product: ${app.product}
+Principal Amount: UGX ${Number(app.amount).toLocaleString()}
+Repayment Period: ${app.period_months} months
+Purpose: ${app.purpose}
+
+Guarantors:
+${guarantorLines}
+
+Collateral Pledged:
+${collateralLines}
+
+Disbursement Conditions:
+Disbursement will be made to the borrower's SODIS-SACCO savings account only
+after this agreement is signed by both the borrower and an authorized SACCO
+officer, and after all guarantor acceptances and collateral verifications
+(where applicable) are complete.
+
+Repayment Conditions:
+The borrower agrees to repay the principal amount plus applicable interest
+and fees, as set by the SODIS-SACCO Board, according to the repayment
+schedule to be issued upon disbursement. Repayment may be made by salary
+deduction, direct deposit, standing order, or account debit as provided in
+the Lending & Credit Policy.
+
+By signing below, the borrower and the authorized SACCO officer confirm
+their agreement to these terms.`;
+}
+
+async function loadPendingSignatures() {
+  const wrap = document.getElementById('pending-signature-wrap');
+  const { data: agreements, error } = await supabaseClient
+    .from('loan_agreements')
+    .select('*, members(full_name, membership_number)')
+    .not('member_signed_at', 'is', null)
+    .is('staff_signed_at', null)
+    .order('member_signed_at', { ascending: true });
+
+  if (error || !agreements || agreements.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No agreements waiting on a SACCO signature.</div>';
+    return;
+  }
+
+  wrap.innerHTML = agreements.map(a => {
+    const member = a.members || {};
+    return `
+      <div class="app-card">
+        <h3>${escapeHtml(member.full_name || 'Member')} (${escapeHtml(member.membership_number || '—')})</h3>
+        <p class="text-soft" style="margin:6px 0 14px;">Signed by the member as "${escapeHtml(a.member_signature_name)}" on ${formatDate(a.member_signed_at)}.</p>
+        <div class="agreement-doc" style="margin-bottom:14px;">${escapeHtml(a.terms_summary)}</div>
+        <div class="app-actions">
+          <button class="btn btn-green btn-sm countersign-btn" data-id="${a.id}">Countersign &amp; disburse</button>
+          <button class="btn btn-outline-dark btn-sm print-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('.countersign-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Processing…';
+      await countersignAgreement(btn.getAttribute('data-id'));
+    });
+  });
+  wrap.querySelectorAll('.print-btn').forEach(btn => {
+    btn.addEventListener('click', () => printAgreement(decodeURIComponent(btn.getAttribute('data-text'))));
+  });
+}
+
+async function countersignAgreement(agreementId) {
+  const { data: agreement, error: fetchError } = await supabaseClient
+    .from('loan_agreements')
+    .select('*')
+    .eq('id', agreementId)
+    .single();
+
+  if (fetchError || !agreement) {
+    showMsg('Could not find this agreement.', 'error');
+    loadPendingSignatures();
+    return;
+  }
+
+  const { data: app } = await supabaseClient
+    .from('loan_applications')
+    .select('*')
+    .eq('id', agreement.loan_application_id)
+    .single();
+
+  const { data: newLoan, error: loanError } = await supabaseClient
+    .from('loans')
+    .insert([{
+      member_id: agreement.member_id,
+      product: app.product,
+      principal: app.amount,
+      outstanding_balance: app.amount,
+      status: 'Active',
+      disbursed_at: new Date().toISOString().slice(0, 10)
+    }])
+    .select()
+    .single();
+
+  if (loanError) {
+    showMsg('Could not create the loan record: ' + loanError.message, 'error');
+    loadPendingSignatures();
+    return;
+  }
+
+  await supabaseClient.from('loan_agreements').update({
+    staff_signed_at: new Date().toISOString(),
+    staff_signature_name: currentAdmin.full_name || currentAdmin.email,
+    staff_email: currentAdmin.email,
+    loan_id: newLoan.id
+  }).eq('id', agreementId);
+
+  await supabaseClient.from('loan_applications').update({
+    status: 'Disbursed',
+    loan_id: newLoan.id
+  }).eq('id', agreement.loan_application_id);
+
+  showMsg('Countersigned. The loan is now active and visible in the member\'s portal.', 'success');
+  loadPendingSignatures();
+  loadApplications();
+}
+
 async function loadApplications() {
   const wrap = document.getElementById('apps-wrap');
   wrap.innerHTML = '<p class="text-soft">Loading…</p>';
@@ -92,20 +256,44 @@ async function loadApplications() {
   }
 
   if (!apps || apps.length === 0) {
-    wrap.innerHTML = '<div class="empty-state">No loan applications in this view.</div>';
+    wrap.innerHTML = '<div class="empty-state">No applications in this view.</div>';
     return;
   }
 
-  wrap.innerHTML = apps.map(app => {
-    const statusClass = app.status === 'Approved' ? 'status-approved' : app.status === 'Rejected' ? 'status-rejected' : '';
-    const isPending = app.status === 'Submitted';
+  const cards = await Promise.all(apps.map(async (app) => {
     const member = app.members || {};
+    const statusClass = app.status === 'Disbursed' ? 'status-approved' : app.status === 'Rejected' ? 'status-rejected' : '';
+    const isPending = app.status === 'Submitted';
+
+    let guarantorHtml = '';
+    let collateralHtml = '';
+
+    if (isPending) {
+      const { data: guarantors } = await supabaseClient
+        .from('loan_guarantors')
+        .select('*, members(full_name, membership_number)')
+        .eq('loan_application_id', app.id);
+
+      const { data: collateral } = await supabaseClient
+        .from('loan_collateral')
+        .select('*')
+        .eq('loan_application_id', app.id);
+
+      if (guarantors && guarantors.length) {
+        guarantorHtml = '<p style="margin:10px 0 0;font-size:0.88rem;"><span class="text-soft">Guarantors:</span> ' +
+          guarantors.map(g => `${escapeHtml(g.members.full_name)} (${g.status})`).join(', ') + '</p>';
+      }
+      if (collateral && collateral.length) {
+        collateralHtml = '<p style="margin:6px 0 0;font-size:0.88rem;"><span class="text-soft">Collateral:</span> ' +
+          collateral.map(c => `${escapeHtml(c.collateral_type)} — ${escapeHtml(c.description)}`).join('; ') + '</p>';
+      }
+    }
 
     return `
-      <div class="app-card ${statusClass}" data-id="${app.id}" data-member-id="${app.member_id}">
+      <div class="app-card ${statusClass}" data-id="${app.id}">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
           <h3>${escapeHtml(member.full_name || 'Unknown member')} — ${escapeHtml(app.product)}</h3>
-          <span class="badge ${app.status === 'Approved' ? 'badge-green' : ''}" ${app.status === 'Rejected' ? 'style="background:var(--brick);color:var(--white);"' : ''}>${escapeHtml(app.status)}</span>
+          ${appBadge(app.status)}
         </div>
         <div class="app-meta">
           <div><span class="k">Membership No:</span> ${escapeHtml(member.membership_number || '—')}</div>
@@ -116,18 +304,22 @@ async function loadApplications() {
           ${app.decided_at ? `<div><span class="k">Decided:</span> ${formatDate(app.decided_at)}</div>` : ''}
         </div>
         <p style="margin:10px 0 0;font-size:0.9rem;"><span class="text-soft">Purpose:</span> ${escapeHtml(app.purpose)}</p>
+        ${guarantorHtml}
+        ${collateralHtml}
         ${isPending ? `
           <div class="app-actions" style="flex-direction:column;align-items:stretch;">
-            <textarea class="decision-notes" placeholder="Optional note to the member (e.g. reason for decision)" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" rows="2"></textarea>
-            <div style="display:flex;gap:10px;">
-              <button class="btn btn-green btn-sm approve-btn">Approve &amp; create loan</button>
+            <textarea class="decision-notes" placeholder="Optional note to the member" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" rows="2"></textarea>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-green btn-sm approve-btn">Approve &amp; Generate Agreement</button>
               <button class="btn btn-danger btn-sm reject-btn">Reject</button>
             </div>
           </div>
         ` : app.decision_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note sent:</strong> ${escapeHtml(app.decision_notes)}</p>` : ''}
       </div>
     `;
-  }).join('');
+  }));
+
+  wrap.innerHTML = cards.join('');
 
   wrap.querySelectorAll('.approve-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -135,8 +327,8 @@ async function loadApplications() {
       const id = card.getAttribute('data-id');
       const notes = card.querySelector('.decision-notes').value.trim();
       btn.disabled = true;
-      btn.textContent = 'Approving…';
-      await approveLoanApplication(id, notes);
+      btn.textContent = 'Generating…';
+      await approveAndGenerateAgreement(id, notes);
     });
   });
 
@@ -153,20 +345,24 @@ async function loadApplications() {
         .update({ status: 'Rejected', decision_notes: notes || null, decided_at: new Date().toISOString() })
         .eq('id', id);
 
-      if (error) {
-        showMsg('Could not reject this application.', 'error');
-      } else {
-        showMsg('Application rejected.', 'success');
-      }
+      if (error) showMsg('Could not reject this application.', 'error');
+      else showMsg('Application rejected.', 'success');
       loadApplications();
     });
   });
 }
 
-async function approveLoanApplication(applicationId, notes) {
+function appBadge(status) {
+  if (status === 'Disbursed') return '<span class="badge badge-green">Disbursed</span>';
+  if (status === 'Rejected') return '<span class="badge" style="background:var(--brick);color:var(--white);">Rejected</span>';
+  if (status === 'Awaiting Signatures') return '<span class="badge" style="background:var(--indigo);color:var(--white);">Awaiting signatures</span>';
+  return '<span class="badge">Submitted</span>';
+}
+
+async function approveAndGenerateAgreement(applicationId, notes) {
   const { data: app, error: fetchError } = await supabaseClient
     .from('loan_applications')
-    .select('*')
+    .select('*, members(full_name, membership_number)')
     .eq('id', applicationId)
     .single();
 
@@ -176,39 +372,39 @@ async function approveLoanApplication(applicationId, notes) {
     return;
   }
 
-  const { data: newLoan, error: loanError } = await supabaseClient
-    .from('loans')
-    .insert([{
-      member_id: app.member_id,
-      product: app.product,
-      principal: app.amount,
-      outstanding_balance: app.amount,
-      status: 'Active',
-      disbursed_at: new Date().toISOString().slice(0, 10)
-    }])
-    .select()
-    .single();
+  const { data: guarantors } = await supabaseClient
+    .from('loan_guarantors')
+    .select('*, members(full_name, membership_number)')
+    .eq('loan_application_id', applicationId);
 
-  if (loanError) {
-    showMsg('Could not create the loan record: ' + loanError.message, 'error');
+  const { data: collateral } = await supabaseClient
+    .from('loan_collateral')
+    .select('*')
+    .eq('loan_application_id', applicationId);
+
+  const termsText = buildAgreementText(app, app.members, guarantors, collateral);
+
+  const { error: agreementError } = await supabaseClient.from('loan_agreements').insert([{
+    loan_application_id: applicationId,
+    member_id: app.member_id,
+    terms_summary: termsText
+  }]);
+
+  if (agreementError) {
+    showMsg('Could not generate the agreement: ' + agreementError.message, 'error');
     loadApplications();
     return;
   }
 
   const { error: updateError } = await supabaseClient
     .from('loan_applications')
-    .update({
-      status: 'Approved',
-      decision_notes: notes || null,
-      decided_at: new Date().toISOString(),
-      loan_id: newLoan.id
-    })
+    .update({ status: 'Awaiting Signatures', decision_notes: notes || null, decided_at: new Date().toISOString() })
     .eq('id', applicationId);
 
   if (updateError) {
-    showMsg('Loan created, but the application status could not be updated.', 'error');
+    showMsg('Agreement generated, but the application status could not be updated.', 'error');
   } else {
-    showMsg('Approved — a new loan record has been created and the member can now see it in their portal.', 'success');
+    showMsg('Approved. The agreement has been generated and is now waiting for the member to sign in their portal.', 'success');
   }
 
   loadApplications();
@@ -222,8 +418,9 @@ function showMsg(text, type) {
 }
 
 (async () => {
-  const admin = await requireAdminAuth();
-  if (!admin) return;
+  currentAdmin = await requireAdminAuth();
+  if (!currentAdmin) return;
+  await loadPendingSignatures();
   await loadApplications();
 })();
 
