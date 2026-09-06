@@ -653,3 +653,43 @@ footer.site-footer {
 .stat-line:last-child { border-bottom: none; }
 .stat-line label { font-weight: 600; color: var(--indigo); font-size: 0.9rem; }
 .stat-line input { width: 220px; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-body); text-align: right; }
+
+/* ============================================================
+   LOAN AGREEMENTS
+   ============================================================ */
+
+.agreement-doc {
+  background: var(--white);
+  border: 1px solid var(--line);
+  padding: 26px 28px;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  font-family: var(--font-body);
+  color: var(--ink);
+  max-width: 680px;
+}
+
+.sign-box {
+  background: var(--stone);
+  border: 1px solid var(--line);
+  padding: 18px 20px;
+  margin-top: 18px;
+}
+.sign-box label { display: block; font-weight: 600; color: var(--indigo); font-size: 0.88rem; margin-bottom: 6px; }
+.sign-box input[type="text"] {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: var(--radius); font-family: var(--font-body); margin-bottom: 12px;
+}
+.sign-box .agree-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; font-size: 0.9rem; }
+.sign-box .agree-row input { width: auto; margin-top: 3px; }
+
+#agreement-print-area { display: none; }
+@media print {
+  body.print-agreement-mode > *:not(#agreement-print-area) { display: none !important; }
+  #agreement-print-area {
+    display: block !important;
+    position: absolute; top: 0; left: 0; width: 100%;
+    padding: 20px;
+  }
+}
