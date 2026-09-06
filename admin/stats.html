@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Statistics — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Homepage Statistics</h1>
+      <p class="text-soft" style="margin-bottom:24px;">These figures power the stat strip on the public homepage. Update them whenever your real numbers change.</p>
+
+      <div id="form-msg" class="form-msg"></div>
+
+      <div class="form-panel" style="max-width:480px;">
+        <div class="stat-line">
+          <label for="members">Members</label>
+          <input type="number" id="members">
+        </div>
+        <div class="stat-line">
+          <label for="savings">Total savings (UGX)</label>
+          <input type="number" id="savings">
+        </div>
+        <div class="stat-line">
+          <label for="loan_portfolio">Loan portfolio (UGX)</label>
+          <input type="number" id="loan_portfolio">
+        </div>
+        <div class="stat-line">
+          <label for="active_loans">Active loans</label>
+          <input type="number" id="active_loans">
+        </div>
+
+        <button class="btn btn-green btn-block" id="save-btn" style="margin-top:20px;">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+async function loadStats() {
+  const { data, error } = await supabaseClient.from('site_stats').select('*').eq('id', 1).single();
+  if (error || !data) return;
+
+  document.getElementById('members').value = data.members;
+  document.getElementById('savings').value = data.savings;
+  document.getElementById('loan_portfolio').value = data.loan_portfolio;
+  document.getElementById('active_loans').value = data.active_loans;
+}
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('save-btn');
+  const msg = document.getElementById('form-msg');
+  msg.className = 'form-msg';
+
+  const payload = {
+    members: Number(document.getElementById('members').value) || 0,
+    savings: Number(document.getElementById('savings').value) || 0,
+    loan_portfolio: Number(document.getElementById('loan_portfolio').value) || 0,
+    active_loans: Number(document.getElementById('active_loans').value) || 0,
+    updated_at: new Date().toISOString()
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const { error } = await supabaseClient.from('site_stats').update(payload).eq('id', 1);
+
+  if (error) {
+    msg.textContent = 'Could not save changes: ' + error.message;
+    msg.className = 'form-msg error show';
+  } else {
+    msg.textContent = 'Saved. The homepage will reflect these figures immediately.';
+    msg.className = 'form-msg success show';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Save changes';
+});
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+  await loadStats();
+})();
+</script>
+</body>
+</html>

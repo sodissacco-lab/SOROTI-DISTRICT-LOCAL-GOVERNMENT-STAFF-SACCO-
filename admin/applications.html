@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Membership Applications — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Membership Applications</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Review, approve, or reject applications submitted through the public website.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div style="margin-bottom:20px;">
+        <select id="filter-status" style="padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
+          <option value="Submitted">Pending review</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="all">All applications</option>
+        </select>
+      </div>
+
+      <div id="apps-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+async function loadApplications() {
+  const wrap = document.getElementById('apps-wrap');
+  wrap.innerHTML = '<p class="text-soft">Loading…</p>';
+
+  const filter = document.getElementById('filter-status').value;
+  let query = supabaseClient.from('membership_applications').select('*').order('submitted_at', { ascending: false });
+  if (filter !== 'all') query = query.eq('status', filter);
+
+  const { data: apps, error } = await query;
+
+  if (error) {
+    wrap.innerHTML = '<div class="empty-state">Could not load applications.</div>';
+    return;
+  }
+
+  if (!apps || apps.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No applications in this view.</div>';
+    return;
+  }
+
+  wrap.innerHTML = apps.map(app => {
+    const statusClass = app.status === 'Approved' ? 'status-approved' : app.status === 'Rejected' ? 'status-rejected' : '';
+    const isPending = app.status === 'Submitted';
+
+    return `
+      <div class="app-card ${statusClass}" data-id="${app.id}">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(app.full_name)}</h3>
+          <span class="badge ${app.status === 'Approved' ? 'badge-green' : ''}" ${app.status === 'Rejected' ? 'style="background:var(--brick);color:var(--white);"' : ''}>${escapeHtml(app.status)}</span>
+        </div>
+        <div class="app-meta">
+          <div><span class="k">Phone:</span> ${escapeHtml(app.phone)}</div>
+          <div><span class="k">Email:</span> ${escapeHtml(app.email || '—')}</div>
+          <div><span class="k">National ID:</span> ${escapeHtml(app.national_id)}</div>
+          <div><span class="k">Date of birth:</span> ${formatDate(app.date_of_birth)}</div>
+          <div><span class="k">Department:</span> ${escapeHtml(app.department)}</div>
+          <div><span class="k">Designation:</span> ${escapeHtml(app.designation)}</div>
+          <div><span class="k">Duty station:</span> ${escapeHtml(app.duty_station)}</div>
+          <div><span class="k">Employee number:</span> ${escapeHtml(app.employee_number)}</div>
+          <div><span class="k">Employment type:</span> ${escapeHtml(app.employment_type)}</div>
+          <div><span class="k">Address:</span> ${escapeHtml(app.address)}</div>
+          <div><span class="k">Next of kin:</span> ${escapeHtml(app.kin_name)} (${escapeHtml(app.kin_relationship)}, ${escapeHtml(app.kin_phone)})</div>
+          <div><span class="k">Submitted:</span> ${formatDate(app.submitted_at)}</div>
+          ${app.membership_number ? `<div><span class="k">Membership No:</span> ${escapeHtml(app.membership_number)}</div>` : ''}
+        </div>
+        ${isPending ? `
+          <div class="app-actions">
+            <input type="text" placeholder="Membership number e.g. SODIS-000123" class="membership-number-input">
+            <button class="btn btn-green btn-sm approve-btn">Approve</button>
+            <button class="btn btn-danger btn-sm reject-btn">Reject</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Wire up buttons
+  wrap.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const id = card.getAttribute('data-id');
+      const numberInput = card.querySelector('.membership-number-input');
+      const membershipNumber = numberInput.value.trim();
+
+      if (!membershipNumber) {
+        showMsg('Please enter a membership number before approving.', 'error');
+        numberInput.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Approving…';
+
+      await approveApplication(id, membershipNumber);
+    });
+  });
+
+  wrap.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const id = card.getAttribute('data-id');
+      btn.disabled = true;
+      btn.textContent = 'Rejecting…';
+
+      const { error } = await supabaseClient
+        .from('membership_applications')
+        .update({ status: 'Rejected' })
+        .eq('id', id);
+
+      if (error) {
+        showMsg('Could not reject this application. Please try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Reject';
+      } else {
+        showMsg('Application rejected.', 'success');
+        loadApplications();
+      }
+    });
+  });
+}
+
+async function approveApplication(applicationId, membershipNumber) {
+  const { data: app, error: fetchError } = await supabaseClient
+    .from('membership_applications')
+    .select('*')
+    .eq('id', applicationId)
+    .single();
+
+  if (fetchError || !app) {
+    showMsg('Could not find this application.', 'error');
+    loadApplications();
+    return;
+  }
+
+  // Create the member record (auth_user_id stays NULL until you
+  // create their login in Authentication and link it — see README)
+  const { error: insertError } = await supabaseClient.from('members').insert([{
+    membership_number: membershipNumber,
+    full_name: app.full_name,
+    email: app.email,
+    phone: app.phone,
+    department: app.department,
+    duty_station: app.duty_station,
+    status: 'Active'
+  }]);
+
+  if (insertError) {
+    showMsg('Could not create the member record: ' + insertError.message, 'error');
+    loadApplications();
+    return;
+  }
+
+  const { error: updateError } = await supabaseClient
+    .from('membership_applications')
+    .update({ status: 'Approved', membership_number: membershipNumber })
+    .eq('id', applicationId);
+
+  if (updateError) {
+    showMsg('Member record created, but the application status could not be updated.', 'error');
+  } else {
+    showMsg(`Approved. Member record created for ${app.full_name} (${membershipNumber}). Next: create their login in Authentication → Users, then paste their User UID into this member's auth_user_id field in the members table.`, 'success');
+  }
+
+  loadApplications();
+}
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+  await loadApplications();
+})();
+
+document.getElementById('filter-status').addEventListener('change', loadApplications);
+</script>
+</body>
+</html>

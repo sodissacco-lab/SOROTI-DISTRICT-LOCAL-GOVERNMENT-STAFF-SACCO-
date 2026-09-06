@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>News — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">News &amp; Announcements</h1>
+
+      <div class="form-panel" style="max-width:640px;margin-bottom:36px;">
+        <div id="form-msg" class="form-msg"></div>
+        <form id="news-form">
+          <div class="field">
+            <label for="title">Title *</label>
+            <input type="text" id="title" required>
+          </div>
+          <div class="field">
+            <label for="body">Announcement *</label>
+            <textarea id="body" rows="4" required></textarea>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+              <input type="checkbox" id="published" style="width:auto;" checked>
+              Publish immediately (visible on the public site)
+            </label>
+          </div>
+          <button type="submit" class="btn btn-green btn-block" id="submit-btn">Post announcement</button>
+        </form>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">All posts</h2>
+      </div>
+      <div id="news-wrap"><p class="text-soft">Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+async function loadNews() {
+  const wrap = document.getElementById('news-wrap');
+  const { data: posts, error } = await supabaseClient
+    .from('news_posts')
+    .select('*')
+    .order('posted_at', { ascending: false });
+
+  if (error || !posts || posts.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No news posted yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = posts.map(p => `
+    <div class="app-card ${p.published ? '' : 'status-rejected'}">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${escapeHtml(p.title)}</h3>
+        <span class="badge ${p.published ? 'badge-green' : ''}" ${!p.published ? 'style="background:var(--ink-soft);color:var(--white);"' : ''}>${p.published ? 'Published' : 'Draft'}</span>
+      </div>
+      <p style="margin:10px 0;">${escapeHtml(p.body)}</p>
+      <p class="text-soft" style="font-size:0.82rem;margin:0 0 12px;">${formatDate(p.posted_at)}</p>
+      <div class="app-actions">
+        <button class="btn btn-outline-dark btn-sm toggle-publish" data-id="${p.id}" data-published="${p.published}">
+          ${p.published ? 'Unpublish' : 'Publish'}
+        </button>
+        <button class="btn btn-danger btn-sm delete-post" data-id="${p.id}">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.toggle-publish').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const current = btn.getAttribute('data-published') === 'true';
+      await supabaseClient.from('news_posts').update({ published: !current }).eq('id', id);
+      loadNews();
+    });
+  });
+
+  wrap.querySelectorAll('.delete-post').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this post permanently?')) return;
+      const id = btn.getAttribute('data-id');
+      await supabaseClient.from('news_posts').delete().eq('id', id);
+      loadNews();
+    });
+  });
+}
+
+document.getElementById('news-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('form-msg');
+  msg.className = 'form-msg';
+
+  const payload = {
+    title: document.getElementById('title').value.trim(),
+    body: document.getElementById('body').value.trim(),
+    published: document.getElementById('published').checked,
+    posted_at: new Date().toISOString()
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Posting…';
+
+  const { error } = await supabaseClient.from('news_posts').insert([payload]);
+
+  if (error) {
+    msg.textContent = 'Could not post this announcement.';
+    msg.className = 'form-msg error show';
+  } else {
+    msg.textContent = 'Announcement posted.';
+    msg.className = 'form-msg success show';
+    document.getElementById('news-form').reset();
+    document.getElementById('published').checked = true;
+    loadNews();
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Post announcement';
+});
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+  await loadNews();
+})();
+</script>
+</body>
+</html>
