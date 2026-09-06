@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Member Login — SODIS-SACCO</title>
 <link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
 <link rel="stylesheet" href="../css/styles.css">
 <style>
   .login-wrap {
@@ -125,6 +128,12 @@ document.getElementById('forgot-link').addEventListener('click', async function(
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) window.location.href = 'dashboard.html';
 })();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
