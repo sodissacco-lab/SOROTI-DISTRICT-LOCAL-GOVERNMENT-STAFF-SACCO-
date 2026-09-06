@@ -693,3 +693,19 @@ footer.site-footer {
     padding: 20px;
   }
 }
+
+.guarantor-picker { position: relative; }
+.guarantor-results {
+  position: relative;
+  margin-top: 4px;
+}
+.guarantor-result-item {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-top: none;
+  background: var(--white);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.guarantor-result-item:hover { background: var(--stone); }
+.guarantor-result-item:first-child { border-top: 1px solid var(--line); }
