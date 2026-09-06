@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Membership — SODIS-SACCO</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">SS</span>
+      <span class="brand-text"><strong>SODIS-SACCO</strong><span>Soroti District LG Staff SACCO</span></span>
+    </a>
+    <nav class="main-nav">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="membership.html">Membership</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="governance.html">Governance</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+    <div class="nav-actions">
+      <a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a>
+      <button class="menu-toggle" aria-expanded="false" aria-label="Menu">Menu</button>
+    </div>
+  </div>
+  <div class="mobile-panel">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="membership.html">Membership</a></li>
+      <li><a href="savings.html">Savings</a></li>
+      <li><a href="loans.html">Loans</a></li>
+      <li><a href="governance.html">Governance</a></li>
+      <li><a href="resources.html">Resources</a></li>
+      <li><a href="news.html">News</a></li>
+      <li><a href="contact.html">Contact</a></li>
+      <li><a href="membership.html#apply" class="btn btn-gold">Join SODIS-SACCO</a></li>
+    </ul>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="breadcrumb"><a href="index.html">Home</a> / Membership</div>
+    <h1>Become a member</h1>
+    <p>Membership is open to Soroti District Local Government staff. Apply online — a Membership Officer will follow up on verification.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">How it works</span>
+      <h2>From application to membership number</h2>
+    </div>
+    <ul class="steps">
+      <li><h4>Apply online</h4><p>Complete the form below with your personal, employment and next-of-kin details.</p></li>
+      <li><h4>Verification</h4><p>The Membership Relations Officer checks your details and employment status.</p></li>
+      <li><h4>Review &amp; approval</h4><p>The General Manager reviews and approves the application.</p></li>
+      <li><h4>Membership number issued</h4><p>You'll be contacted with your membership number and account setup instructions.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section section-alt" id="apply">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Application form</span>
+      <h2>Apply for membership</h2>
+    </div>
+
+    <div class="form-panel" style="max-width:760px;">
+      <div id="form-msg" class="form-msg"></div>
+
+      <form id="membership-form">
+        <h3 class="mt-0">Personal information</h3>
+        <div class="field-row two">
+          <div class="field">
+            <label for="full_name">Full name *</label>
+            <input type="text" id="full_name" name="full_name" required>
+          </div>
+          <div class="field">
+            <label for="national_id">National ID (NIN) *</label>
+            <input type="text" id="national_id" name="national_id" required>
+          </div>
+        </div>
+        <div class="field-row two">
+          <div class="field">
+            <label for="date_of_birth">Date of birth *</label>
+            <input type="date" id="date_of_birth" name="date_of_birth" required>
+          </div>
+          <div class="field">
+            <label for="gender">Gender *</label>
+            <select id="gender" name="gender" required>
+              <option value="">Select…</option>
+              <option>Female</option>
+              <option>Male</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row two">
+          <div class="field">
+            <label for="phone">Phone number *</label>
+            <input type="tel" id="phone" name="phone" required>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email">
+          </div>
+        </div>
+        <div class="field">
+          <label for="address">Physical address *</label>
+          <input type="text" id="address" name="address" required>
+        </div>
+
+        <h3>Employment information</h3>
+        <div class="field-row two">
+          <div class="field">
+            <label for="department">Department *</label>
+            <input type="text" id="department" name="department" required>
+          </div>
+          <div class="field">
+            <label for="designation">Position / designation *</label>
+            <input type="text" id="designation" name="designation" required>
+          </div>
+        </div>
+        <div class="field-row two">
+          <div class="field">
+            <label for="duty_station">Duty station *</label>
+            <input type="text" id="duty_station" name="duty_station" required>
+          </div>
+          <div class="field">
+            <label for="employee_number">Employee number *</label>
+            <input type="text" id="employee_number" name="employee_number" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="employment_type">Employment type *</label>
+          <select id="employment_type" name="employment_type" required>
+            <option value="">Select…</option>
+            <option>Permanent</option>
+            <option>Contract</option>
+            <option>Probation</option>
+          </select>
+        </div>
+
+        <h3>Next of kin</h3>
+        <div class="field-row two">
+          <div class="field">
+            <label for="kin_name">Next of kin name *</label>
+            <input type="text" id="kin_name" name="kin_name" required>
+          </div>
+          <div class="field">
+            <label for="kin_relationship">Relationship *</label>
+            <input type="text" id="kin_relationship" name="kin_relationship" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="kin_phone">Next of kin phone *</label>
+          <input type="tel" id="kin_phone" name="kin_phone" required>
+          <p class="hint">Supporting documents (National ID, staff ID, passport photo) will be requested by the Membership Relations Officer during verification — no need to upload anything here yet.</p>
+        </div>
+
+        <button type="submit" class="btn btn-green btn-block" id="submit-btn">Submit application</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <h4>SODIS-SACCO</h4>
+        <p style="color:var(--stone);font-size:0.9rem;max-width:40ch;">Soroti District Local Government Staff Cooperative Savings and Credit Society Limited. Registration 9020/RCS.</p>
+        <p style="color:var(--stone);font-size:0.9rem;">Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda.</p>
+      </div>
+      <div>
+        <h4>Quick links</h4>
+        <ul>
+          <li><a href="about.html">About us</a></li>
+          <li><a href="membership.html">Membership</a></li>
+          <li><a href="governance.html">Governance</a></li>
+          <li><a href="resources.html">Resources</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Get in touch</h4>
+        <ul>
+          <li><a href="contact.html">Contact us</a></li>
+          <li><a href="news.html">News &amp; events</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> SODIS-SACCO. All rights reserved.</span>
+      <span>Registration 9020/RCS</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/site.js"></script>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+document.getElementById('membership-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('form-msg');
+  msg.className = 'form-msg';
+
+  const payload = {
+    full_name: document.getElementById('full_name').value.trim(),
+    national_id: document.getElementById('national_id').value.trim(),
+    date_of_birth: document.getElementById('date_of_birth').value,
+    gender: document.getElementById('gender').value,
+    phone: document.getElementById('phone').value.trim(),
+    email: document.getElementById('email').value.trim() || null,
+    address: document.getElementById('address').value.trim(),
+    department: document.getElementById('department').value.trim(),
+    designation: document.getElementById('designation').value.trim(),
+    duty_station: document.getElementById('duty_station').value.trim(),
+    employee_number: document.getElementById('employee_number').value.trim(),
+    employment_type: document.getElementById('employment_type').value,
+    kin_name: document.getElementById('kin_name').value.trim(),
+    kin_relationship: document.getElementById('kin_relationship').value.trim(),
+    kin_phone: document.getElementById('kin_phone').value.trim(),
+    status: 'Submitted'
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  try {
+    const { error } = await supabaseClient.from('membership_applications').insert([payload]);
+    if (error) throw error;
+
+    msg.textContent = "Application submitted. A Membership Officer will contact you once your details have been verified.";
+    msg.className = 'form-msg success show';
+    document.getElementById('membership-form').reset();
+  } catch (err) {
+    console.error(err);
+    msg.textContent = "We couldn't submit your application right now. Please try again, or contact the office directly.";
+    msg.className = 'form-msg error show';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Submit application';
+    msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+</script>
+</body>
+</html>
