@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGM Management — SODIS-SACCO Board Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  @media print {
+    .portal-sidebar, .portal-topbar, .no-print { display: none !important; }
+    .portal-main { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Board Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="meetings.html">Meetings &amp; Resolutions</a></li>
+        <li><a href="agm.html">AGM Management</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar no-print">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-board-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Board account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="print-letterhead">
+        <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+        <div class="letterhead-text">
+          <strong>SODIS-SACCO</strong>
+          <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+          <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+        </div>
+      </div>
+
+      <h1 style="font-size:1.4rem;" class="no-print">AGM Management</h1>
+      <p class="text-soft no-print" style="margin-bottom:6px;">Notice, agenda, attendance, and voting for the Annual General Meeting.</p>
+      <p class="text-soft no-print" style="margin-bottom:24px;font-size:0.82rem;">For genuine public reach before the 14-day notice period (not just to members with a portal login), also post this notice via <a href="../admin/news.html">News</a> on the public website.</p>
+
+      <div id="msg-banner" class="form-msg no-print"></div>
+
+      <div id="list-view">
+        <div class="form-panel no-print" style="max-width:640px;margin-bottom:30px;">
+          <h3 class="mt-0">Schedule an AGM</h3>
+          <div class="field">
+            <label for="new-title">Title</label>
+            <input type="text" id="new-title" placeholder="e.g. 2027 Annual General Meeting">
+          </div>
+          <div class="field-row two">
+            <div class="field">
+              <label for="new-date">Date</label>
+              <input type="date" id="new-date">
+            </div>
+            <div class="field">
+              <label for="new-venue">Venue</label>
+              <input type="text" id="new-venue" placeholder="e.g. Soroti District Hall">
+            </div>
+          </div>
+          <div class="field">
+            <label for="new-notice">Notice text</label>
+            <textarea id="new-notice" rows="2" placeholder="Formal notice wording for members"></textarea>
+          </div>
+          <div class="field">
+            <label for="new-agenda">Agenda</label>
+            <textarea id="new-agenda" rows="3" placeholder="One item per line"></textarea>
+          </div>
+          <button class="btn btn-green btn-block" id="create-agm-btn">Schedule AGM</button>
+        </div>
+
+        <div class="section-head no-print" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">All AGMs</h2>
+        </div>
+        <div id="agms-wrap" class="no-print"><p class="text-soft">Loading…</p></div>
+      </div>
+
+      <div id="detail-view" style="display:none;">
+        <button class="btn btn-outline-dark btn-sm no-print" id="back-btn" style="margin-bottom:18px;">← All AGMs</button>
+
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;">
+          <h2 id="dv-title" style="font-size:1.2rem;">—</h2>
+          <button class="btn btn-outline-dark no-print" onclick="window.print()">Print notice &amp; agenda</button>
+        </div>
+        <p id="dv-meta" class="text-soft" style="margin-bottom:20px;">—</p>
+
+        <h3 style="font-size:1rem;color:var(--indigo);">Notice</h3>
+        <p id="dv-notice" style="white-space:pre-wrap;margin-bottom:20px;">—</p>
+
+        <h3 style="font-size:1rem;color:var(--indigo);">Agenda</h3>
+        <p id="dv-agenda" style="white-space:pre-wrap;margin-bottom:20px;">—</p>
+
+        <div class="field-row two no-print" style="max-width:520px;margin-bottom:24px;">
+          <div class="field">
+            <label for="dv-status">AGM status</label>
+            <select id="dv-status">
+              <option>Upcoming</option>
+              <option>Held</option>
+              <option>Archived</option>
+            </select>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;margin-top:22px;font-weight:400;">
+              <input type="checkbox" id="dv-attendance-open" style="width:auto;">
+              Attendance check-in is open
+            </label>
+          </div>
+        </div>
+
+        <div class="summary-grid" style="grid-template-columns:1fr;max-width:260px;">
+          <div class="summary-card">
+            <div class="label">Members checked in</div>
+            <div class="figure" id="attendance-count">—</div>
+          </div>
+        </div>
+
+        <div class="form-panel no-print" style="max-width:480px;margin-bottom:30px;">
+          <h4 class="mt-0" style="font-size:0.95rem;">Mark a member present manually</h4>
+          <input type="text" id="manual-attend-search" placeholder="Search by name or membership number" autocomplete="off">
+          <div id="manual-attend-results"></div>
+        </div>
+
+        <hr class="ledger-rule">
+
+        <div class="section-head no-print" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Resolutions &amp; voting</h2>
+        </div>
+
+        <div class="form-panel no-print" style="max-width:600px;margin-bottom:24px;">
+          <div class="field">
+            <label for="res-text">Proposal</label>
+            <textarea id="res-text" rows="2" placeholder="e.g. Approve the audited accounts for FY2026"></textarea>
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+              <input type="checkbox" id="res-requires-vote" style="width:auto;" checked>
+              This item requires a member vote
+            </label>
+          </div>
+          <button class="btn btn-green btn-block" id="add-resolution-btn">Add to agenda</button>
+        </div>
+
+        <div id="resolutions-wrap"><p class="text-soft">Loading…</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/board.js"></script>
+<script>
+let currentAgm = null;
+let manualSearchDebounce = null;
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadAgms() {
+  const { data: agms } = await supabaseClient.from('agms').select('*').order('meeting_date', { ascending: false });
+  const wrap = document.getElementById('agms-wrap');
+
+  if (!agms || agms.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No AGMs scheduled yet.</div>';
+    return;
+  }
+
+  const statusBadge = (s) => s === 'Held' ? '<span class="badge badge-green">Held</span>' : s === 'Archived' ? '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Archived</span>' : '<span class="badge" style="background:var(--gold);">Upcoming</span>';
+
+  wrap.innerHTML = agms.map(a => `
+    <div class="app-card" style="cursor:pointer;" data-id="${a.id}">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${escapeHtml(a.title)}</h3>
+        ${statusBadge(a.status)}
+      </div>
+      <p class="text-soft" style="margin:6px 0 0;">${formatDate(a.meeting_date)}${a.venue ? ' — ' + escapeHtml(a.venue) : ''}</p>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.app-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const { data: agm } = await supabaseClient.from('agms').select('*').eq('id', card.getAttribute('data-id')).single();
+      openAgm(agm);
+    });
+  });
+}
+
+document.getElementById('create-agm-btn').addEventListener('click', async () => {
+  const title = document.getElementById('new-title').value.trim();
+  const date = document.getElementById('new-date').value;
+  const venue = document.getElementById('new-venue').value.trim();
+  const notice = document.getElementById('new-notice').value.trim();
+  const agenda = document.getElementById('new-agenda').value.trim();
+
+  if (!title || !date) { showMsg('Enter a title and date.', 'error'); return; }
+
+  const { data: agm, error } = await supabaseClient.from('agms')
+    .insert([{ title, meeting_date: date, venue, notice, agenda }]).select().single();
+
+  if (error || !agm) { showMsg('Could not schedule the AGM.', 'error'); return; }
+
+  showMsg('AGM scheduled.', 'success');
+  ['new-title', 'new-date', 'new-venue', 'new-notice', 'new-agenda'].forEach(id => document.getElementById(id).value = '');
+  openAgm(agm);
+  loadAgms();
+});
+
+function openAgm(agm) {
+  currentAgm = agm;
+  document.getElementById('list-view').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+  document.getElementById('dv-title').textContent = agm.title;
+  document.getElementById('dv-meta').textContent = `${formatDate(agm.meeting_date)}${agm.venue ? ' — ' + agm.venue : ''}`;
+  document.getElementById('dv-notice').textContent = agm.notice || 'No notice text recorded.';
+  document.getElementById('dv-agenda').textContent = agm.agenda || 'No agenda recorded.';
+  document.getElementById('dv-status').value = agm.status || 'Upcoming';
+  document.getElementById('dv-attendance-open').checked = !!agm.attendance_open;
+  loadAttendanceCount();
+  loadResolutions();
+}
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('list-view').style.display = 'block';
+  loadAgms();
+});
+
+document.getElementById('dv-status').addEventListener('change', async (e) => {
+  await supabaseClient.from('agms').update({ status: e.target.value }).eq('id', currentAgm.id);
+  showMsg('AGM status updated.', 'success');
+});
+
+document.getElementById('dv-attendance-open').addEventListener('change', async (e) => {
+  await supabaseClient.from('agms').update({ attendance_open: e.target.checked }).eq('id', currentAgm.id);
+  showMsg(e.target.checked ? 'Attendance check-in is now open.' : 'Attendance check-in closed.', 'success');
+});
+
+async function loadAttendanceCount() {
+  const { count } = await supabaseClient.from('agm_attendance').select('*', { count: 'exact', head: true }).eq('agm_id', currentAgm.id);
+  document.getElementById('attendance-count').textContent = count ?? 0;
+}
+
+document.getElementById('manual-attend-search').addEventListener('input', () => {
+  clearTimeout(manualSearchDebounce);
+  const term = document.getElementById('manual-attend-search').value.trim();
+  const box = document.getElementById('manual-attend-results');
+  if (term.length < 2) { box.innerHTML = ''; return; }
+
+  manualSearchDebounce = setTimeout(async () => {
+    const { data } = await supabaseClient.from('members').select('*')
+      .or(`full_name.ilike.%${term}%,membership_number.ilike.%${term}%`).limit(8);
+
+    if (!data || data.length === 0) { box.innerHTML = '<div class="guarantor-result-item text-soft">No matches.</div>'; return; }
+
+    box.innerHTML = data.map(m => `<div class="guarantor-result-item" data-id="${m.id}" data-name="${escapeHtml(m.full_name)}">${escapeHtml(m.full_name)} <span class="text-soft">(${escapeHtml(m.membership_number)})</span></div>`).join('');
+
+    box.querySelectorAll('.guarantor-result-item[data-id]').forEach(item => {
+      item.addEventListener('click', async () => {
+        const { error } = await supabaseClient.from('agm_attendance').insert([{
+          agm_id: currentAgm.id, member_id: item.getAttribute('data-id'), method: 'staff'
+        }]);
+        if (error) {
+          showMsg(error.code === '23505' ? 'That member is already marked present.' : 'Could not mark attendance.', 'error');
+        } else {
+          showMsg(`${item.getAttribute('data-name')} marked present.`, 'success');
+          loadAttendanceCount();
+        }
+        box.innerHTML = '';
+        document.getElementById('manual-attend-search').value = '';
+      });
+    });
+  }, 300);
+});
+
+async function loadResolutions() {
+  const { data: resolutions } = await supabaseClient
+    .from('agm_resolutions').select('*').eq('agm_id', currentAgm.id).order('created_at', { ascending: true });
+
+  const wrap = document.getElementById('resolutions-wrap');
+  if (!resolutions || resolutions.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No agenda items added yet.</div>';
+    return;
+  }
+
+  const cards = await Promise.all(resolutions.map(async (r) => {
+    let tallyHtml = '';
+    if (r.requires_vote) {
+      const { data: votes } = await supabaseClient.from('agm_votes').select('vote').eq('agm_resolution_id', r.id);
+      const tally = { Yes: 0, No: 0, Abstain: 0 };
+      (votes || []).forEach(v => { if (tally[v.vote] !== undefined) tally[v.vote]++; });
+      const total = tally.Yes + tally.No + tally.Abstain;
+      const pct = (n) => total ? Math.round((n / total) * 100) : 0;
+      tallyHtml = `
+        <div class="app-meta" style="margin-top:10px;">
+          <div><span class="k">Yes:</span> ${tally.Yes} (${pct(tally.Yes)}%)</div>
+          <div><span class="k">No:</span> ${tally.No} (${pct(tally.No)}%)</div>
+          <div><span class="k">Abstain:</span> ${tally.Abstain} (${pct(tally.Abstain)}%)</div>
+          <div><span class="k">Total votes:</span> ${total}</div>
+        </div>`;
+    }
+
+    return `
+      <div class="app-card">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(r.resolution_number)}</h3>
+          ${r.requires_vote ? (r.status === 'Open' ? '<span class="badge" style="background:var(--indigo);color:var(--white);">Voting open</span>' : '<span class="badge badge-green">Voting closed</span>') : '<span class="badge" style="background:var(--ink-soft);color:var(--white);">No vote required</span>'}
+        </div>
+        <p style="margin:8px 0;">${escapeHtml(r.proposal_text)}</p>
+        ${tallyHtml}
+        ${r.requires_vote ? `
+          <div class="app-actions no-print">
+            <button class="btn btn-outline-dark btn-sm toggle-voting" data-id="${r.id}" data-status="${r.status}">${r.status === 'Open' ? 'Close voting' : 'Reopen voting'}</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }));
+
+  wrap.innerHTML = cards.join('');
+
+  wrap.querySelectorAll('.toggle-voting').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const newStatus = btn.getAttribute('data-status') === 'Open' ? 'Closed' : 'Open';
+      await supabaseClient.from('agm_resolutions').update({ status: newStatus }).eq('id', btn.getAttribute('data-id'));
+      loadResolutions();
+    });
+  });
+}
+
+document.getElementById('add-resolution-btn').addEventListener('click', async () => {
+  const text = document.getElementById('res-text').value.trim();
+  const requiresVote = document.getElementById('res-requires-vote').checked;
+
+  if (!text) { showMsg('Enter the proposal text.', 'error'); return; }
+
+  const { error } = await supabaseClient.from('agm_resolutions').insert([{
+    agm_id: currentAgm.id, proposal_text: text, requires_vote: requiresVote
+  }]);
+
+  if (error) { showMsg('Could not add this agenda item.', 'error'); return; }
+
+  showMsg('Added to the agenda.', 'success');
+  document.getElementById('res-text').value = '';
+  document.getElementById('res-requires-vote').checked = true;
+  loadResolutions();
+});
+
+(async () => {
+  const user = await requireBoardAuth();
+  if (!user) return;
+  await loadAgms();
+})();
+</script>
+</body>
+</html>
