@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Monitoring — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="member-accounts.html">Member Accounts</a></li>
+        <li><a href="loan-monitoring.html">Loan Monitoring</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Loan Monitoring</h1>
+      <p class="text-soft" style="margin-bottom:8px;">Live view of upcoming and overdue installments across every loan.</p>
+      <p class="text-soft" style="margin-bottom:24px;font-size:0.82rem;">Loan statuses are checked and corrected against today's date every time this page loads — there's no separate background job, so re-open this page to refresh.</p>
+
+      <div class="summary-grid">
+        <div class="summary-card gold">
+          <div class="label">Due in next 3 days</div>
+          <div class="figure" id="due3-figure">—</div>
+        </div>
+        <div class="summary-card gold">
+          <div class="label">Due today</div>
+          <div class="figure" id="duetoday-figure">—</div>
+        </div>
+        <div class="summary-card" style="border-top-color:var(--brick);">
+          <div class="label">Overdue</div>
+          <div class="figure" id="overdue-figure">—</div>
+        </div>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Overdue portfolio by age</h2>
+      </div>
+      <div id="aging-wrap" style="margin-bottom:36px;">
+        <p class="text-soft">Loading…</p>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Overdue installments</h2>
+      </div>
+      <div id="overdue-list-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysBetween(dueDateStr) {
+  const due = new Date(dueDateStr + 'T00:00:00');
+  const now = new Date(todayStr() + 'T00:00:00');
+  return Math.round((now - due) / 86400000);
+}
+
+// Self-correcting sync: run every time this page loads, since there's
+// no server-side scheduler on a static site. Marks loans Overdue if
+// they have a pending installment past due, and reverts loans back to
+// Active if a previously-overdue loan no longer does (e.g. it was paid).
+async function syncOverdueStatuses() {
+  const { data: overdueRows } = await supabaseClient
+    .from('loan_repayment_schedule')
+    .select('loan_id')
+    .eq('status', 'Pending')
+    .lt('due_date', todayStr());
+
+  const overdueLoanIds = [...new Set((overdueRows || []).map(r => r.loan_id))];
+
+  if (overdueLoanIds.length) {
+    await supabaseClient.from('loans').update({ status: 'Overdue' })
+      .in('id', overdueLoanIds).neq('status', 'Cleared');
+  }
+
+  const { data: currentlyOverdue } = await supabaseClient.from('loans').select('id').eq('status', 'Overdue');
+  const toRevert = (currentlyOverdue || []).map(l => l.id).filter(id => !overdueLoanIds.includes(id));
+  if (toRevert.length) {
+    await supabaseClient.from('loans').update({ status: 'Active' }).in('id', toRevert);
+  }
+}
+
+async function loadMonitoring() {
+  const today = todayStr();
+  const in3 = new Date(); in3.setDate(in3.getDate() + 3);
+  const in3Str = in3.toISOString().slice(0, 10);
+
+  const { data: rows, error } = await supabaseClient
+    .from('loan_repayment_schedule')
+    .select('*, loans(product, member_id, members(full_name, membership_number))')
+    .eq('status', 'Pending')
+    .order('due_date', { ascending: true });
+
+  if (error || !rows) {
+    document.getElementById('aging-wrap').innerHTML = '<div class="empty-state">Could not load schedule data.</div>';
+    document.getElementById('overdue-list-wrap').innerHTML = '';
+    return;
+  }
+
+  let due3 = { count: 0, amount: 0 }, dueToday = { count: 0, amount: 0 }, overdueTotal = { count: 0, amount: 0 };
+  const buckets = {
+    '1-30': { count: 0, amount: 0 }, '31-60': { count: 0, amount: 0 },
+    '61-90': { count: 0, amount: 0 }, '90+': { count: 0, amount: 0 }
+  };
+  const overdueList = [];
+
+  rows.forEach(r => {
+    const due = r.due_date;
+    const amt = Number(r.amount);
+    if (due === today) { dueToday.count++; dueToday.amount += amt; }
+    else if (due > today && due <= in3Str) { due3.count++; due3.amount += amt; }
+    else if (due < today) {
+      const daysOverdue = daysBetween(due);
+      overdueTotal.count++; overdueTotal.amount += amt;
+      const bucket = daysOverdue <= 30 ? '1-30' : daysOverdue <= 60 ? '31-60' : daysOverdue <= 90 ? '61-90' : '90+';
+      buckets[bucket].count++; buckets[bucket].amount += amt;
+      overdueList.push({ ...r, daysOverdue });
+    }
+  });
+
+  document.getElementById('due3-figure').textContent = `${due3.count} (${formatUGX(due3.amount)})`;
+  document.getElementById('duetoday-figure').textContent = `${dueToday.count} (${formatUGX(dueToday.amount)})`;
+  document.getElementById('overdue-figure').textContent = `${overdueTotal.count} (${formatUGX(overdueTotal.amount)})`;
+
+  document.getElementById('aging-wrap').innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Age</th><th style="text-align:right;">Installments</th><th style="text-align:right;">Amount</th></tr></thead>
+      <tbody>
+        ${Object.entries(buckets).map(([label, b]) => `
+          <tr><td>${label} days</td><td class="num">${b.count}</td><td class="num">${formatUGX(b.amount)}</td></tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+  const listWrap = document.getElementById('overdue-list-wrap');
+  if (overdueList.length === 0) {
+    listWrap.innerHTML = '<div class="empty-state">No overdue installments — everything is current.</div>';
+    return;
+  }
+
+  overdueList.sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+  listWrap.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Member</th><th>Loan</th><th>Installment</th><th>Due date</th><th style="text-align:right;">Days overdue</th><th style="text-align:right;">Amount</th><th></th></tr></thead>
+      <tbody>
+        ${overdueList.map(r => {
+          const loan = r.loans || {};
+          const member = loan.members || {};
+          return `
+            <tr>
+              <td>${escapeHtml(member.full_name || 'Unknown')}<br><span class="text-soft" style="font-size:0.8rem;">${escapeHtml(member.membership_number || '')}</span></td>
+              <td>${escapeHtml(loan.product || '')}</td>
+              <td>#${r.installment_number}</td>
+              <td>${formatDate(r.due_date)}</td>
+              <td class="num" style="color:var(--brick);font-weight:600;">${r.daysOverdue}</td>
+              <td class="num">${formatUGX(r.amount)}</td>
+              <td><a href="member-accounts.html?member_id=${loan.member_id}" class="btn btn-outline-dark btn-sm">Post repayment</a></td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+  await syncOverdueStatuses();
+  await loadMonitoring();
+})();
+</script>
+</body>
+</html>
