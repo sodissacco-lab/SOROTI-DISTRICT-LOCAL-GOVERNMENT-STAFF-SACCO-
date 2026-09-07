@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leadership — SODIS-SACCO Member Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Member Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="shares.html">Shares</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="statements.html">Statements</a></li>
+        <li><a href="agm.html">AGM</a></li>
+        <li><a href="leadership.html">Leadership</a></li>
+        <li><a href="notifications.html">Notifications</a></li>
+        <li><a href="requests.html">Requests</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-member-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Membership No: <span data-member-number>—</span></div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Leadership Applications</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Apply to stand for an open position. Your application goes to the Vetting Committee before it can be recommended to the AGM.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Open positions</h2>
+      </div>
+      <div id="positions-wrap" style="margin-bottom:36px;">
+        <p class="text-soft">Loading…</p>
+      </div>
+
+      <div id="apply-panel" class="form-panel" style="max-width:600px;margin-bottom:36px;display:none;">
+        <h3 class="mt-0" id="apply-position-title">Apply</h3>
+        <div class="field">
+          <label for="ap-statement">Candidate statement</label>
+          <textarea id="ap-statement" rows="3" placeholder="Why do you want to stand for this position?"></textarea>
+        </div>
+        <div class="field">
+          <label for="ap-qualifications">Academic qualifications</label>
+          <textarea id="ap-qualifications" rows="2" placeholder="e.g. Bachelor's Degree in Business Administration, Makerere University, 2015"></textarea>
+        </div>
+        <div class="field">
+          <label for="ap-experience">Relevant experience</label>
+          <textarea id="ap-experience" rows="2" placeholder="e.g. 5 years as Head of Department, Soroti District"></textarea>
+        </div>
+        <div class="field">
+          <label for="ap-other">Other credentials (optional)</label>
+          <textarea id="ap-other" rows="2"></textarea>
+        </div>
+        <p class="hint" style="margin-bottom:14px;">Certificates and supporting documents should be submitted physically to the SODIS-SACCO office — this form does not accept file uploads yet.</p>
+        <button class="btn btn-green btn-block" id="submit-application-btn">Submit application</button>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">My applications</h2>
+      </div>
+      <div id="my-applications-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script>
+let currentMember = null;
+let selectedPositionId = null;
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadPositions() {
+  const { data: positions } = await supabaseClient.from('leadership_positions').select('*').eq('is_open', true).order('created_at', { ascending: false });
+  const wrap = document.getElementById('positions-wrap');
+
+  if (!positions || positions.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No positions are currently open for applications.</div>';
+    return;
+  }
+
+  wrap.innerHTML = positions.map(p => `
+    <div class="app-card">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;">
+        <h3>${escapeHtml(p.title)}${p.election_year ? ' — ' + p.election_year : ''}</h3>
+        <button class="btn btn-green btn-sm apply-btn" data-id="${p.id}" data-title="${escapeHtml(p.title)}">Apply</button>
+      </div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.apply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedPositionId = btn.getAttribute('data-id');
+      document.getElementById('apply-position-title').textContent = 'Apply — ' + btn.getAttribute('data-title');
+      document.getElementById('apply-panel').style.display = 'block';
+      document.getElementById('apply-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+}
+
+document.getElementById('submit-application-btn').addEventListener('click', async () => {
+  if (!selectedPositionId) return;
+  const btn = document.getElementById('submit-application-btn');
+
+  const payload = {
+    member_id: currentMember.id,
+    position_id: selectedPositionId,
+    statement: document.getElementById('ap-statement').value.trim(),
+    qualifications: document.getElementById('ap-qualifications').value.trim(),
+    experience: document.getElementById('ap-experience').value.trim(),
+    other_credentials: document.getElementById('ap-other').value.trim() || null
+  };
+
+  if (!payload.statement || !payload.qualifications || !payload.experience) {
+    showMsg('Please fill in your statement, qualifications, and experience.', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const { data: app, error } = await supabaseClient.from('candidate_applications').insert([payload]).select().single();
+
+  if (error || !app) {
+    showMsg('Could not submit your application. Please try again.', 'error');
+  } else {
+    showMsg(`Application submitted — reference ${app.application_number}.`, 'success');
+    document.getElementById('apply-panel').style.display = 'none';
+    ['ap-statement', 'ap-qualifications', 'ap-experience', 'ap-other'].forEach(id => document.getElementById(id).value = '');
+    loadMyApplications();
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Submit application';
+});
+
+function statusBadge(s) {
+  if (s === 'Vetted - Recommended') return '<span class="badge badge-green">Recommended to AGM</span>';
+  if (s === 'Not Recommended') return '<span class="badge" style="background:var(--brick);color:var(--white);">Not recommended</span>';
+  if (s === 'Under Review') return '<span class="badge" style="background:var(--indigo);color:var(--white);">Under review</span>';
+  return '<span class="badge">Submitted</span>';
+}
+
+async function loadMyApplications() {
+  const { data: apps } = await supabaseClient
+    .from('candidate_applications')
+    .select('*, leadership_positions(title, election_year)')
+    .eq('member_id', currentMember.id)
+    .order('submitted_at', { ascending: false });
+
+  const wrap = document.getElementById('my-applications-wrap');
+  if (!apps || apps.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">You have not applied for any leadership position yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = apps.map(a => {
+    const pos = a.leadership_positions || {};
+    return `
+      <div class="app-card ${a.status === 'Vetted - Recommended' ? 'status-approved' : a.status === 'Not Recommended' ? 'status-rejected' : ''}">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(pos.title || 'Position')}${pos.election_year ? ' — ' + pos.election_year : ''} <span class="text-soft" style="font-size:0.8rem;font-weight:400;">${escapeHtml(a.application_number || '')}</span></h3>
+          ${statusBadge(a.status)}
+        </div>
+        <p class="text-soft" style="margin:6px 0 0;font-size:0.88rem;">Submitted ${formatDate(a.submitted_at)}</p>
+        ${a.vetting_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note from the Vetting Committee:</strong> ${escapeHtml(a.vetting_notes)}</p>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+(async () => {
+  currentMember = await requirePortalAuth();
+  if (!currentMember) return;
+  await loadPositions();
+  await loadMyApplications();
+})();
+</script>
+</body>
+</html>
