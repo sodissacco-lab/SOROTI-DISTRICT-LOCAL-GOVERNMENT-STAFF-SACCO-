@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — SODIS-SACCO Credit Committee Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Credit Committee</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-credit-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Credit Committee account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="welcome-banner">
+        <h2>Credit Committee Dashboard</h2>
+        <p>Independent loan decisions — scoped access, separate from general staff.</p>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card gold">
+          <div class="label">Pending applications</div>
+          <div class="figure" id="pending-apps">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Awaiting countersignature</div>
+          <div class="figure" id="pending-signatures">—</div>
+        </div>
+        <div class="summary-card green">
+          <div class="label">Disbursed this year</div>
+          <div class="figure" id="disbursed-count">—</div>
+        </div>
+      </div>
+
+      <div class="section-head" style="margin-bottom:16px;">
+        <h2 style="font-size:1.2rem;">Quick action</h2>
+      </div>
+      <a href="loan-applications.html" class="btn btn-outline-dark">Review loan applications</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/credit.js"></script>
+<script>
+(async () => {
+  const user = await requireCreditAuth();
+  if (!user) return;
+
+  const { count: pendingCount } = await supabaseClient
+    .from('loan_applications').select('*', { count: 'exact', head: true }).eq('status', 'Submitted');
+  document.getElementById('pending-apps').textContent = pendingCount ?? 0;
+
+  const { count: signatureCount } = await supabaseClient
+    .from('loan_agreements').select('*', { count: 'exact', head: true }).not('member_signed_at', 'is', null).is('staff_signed_at', null);
+  document.getElementById('pending-signatures').textContent = signatureCount ?? 0;
+
+  const yearStart = new Date().getFullYear() + '-01-01';
+  const { count: disbursedCount } = await supabaseClient
+    .from('loans').select('*', { count: 'exact', head: true }).gte('disbursed_at', yearStart);
+  document.getElementById('disbursed-count').textContent = disbursedCount ?? 0;
+})();
+</script>
+</body>
+</html>
