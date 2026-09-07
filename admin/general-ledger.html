@@ -231,10 +231,11 @@ async function loadEntries() {
 
   wrap.innerHTML = entries.map(e => {
     const lines = e.journal_entry_lines || [];
+    const isAuto = e.created_by_email === 'system:auto-post';
     return `
       <div class="app-card">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
-          <h3>${escapeHtml(e.reference)} — ${escapeHtml(e.description)}</h3>
+          <h3>${escapeHtml(e.reference)} — ${escapeHtml(e.description)} ${isAuto ? '<span class="badge" style="background:var(--ink-soft);color:var(--white);font-size:0.7rem;">Auto-posted</span>' : ''}</h3>
           <span class="text-soft" style="font-size:0.85rem;">${formatDate(e.entry_date)}</span>
         </div>
         <table class="data-table" style="margin-top:10px;">
