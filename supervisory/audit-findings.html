@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Findings — SODIS-SACCO Supervisory Board Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  @media print {
+    .portal-sidebar, .portal-topbar, .no-print { display: none !important; }
+    .portal-main { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Supervisory Board</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="verification.html">Verification</a></li>
+        <li><a href="audit-findings.html">Audit Findings</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar no-print">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-supervisory-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Supervisory Board account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="print-letterhead">
+        <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+        <div class="letterhead-text">
+          <strong>SODIS-SACCO</strong>
+          <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+          <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;" class="no-print">
+        <h1 style="font-size:1.4rem;margin:0;">Audit Findings</h1>
+        <button class="btn btn-outline-dark" onclick="window.print()">Print findings register</button>
+      </div>
+      <p class="text-soft no-print" style="margin-bottom:24px;">Raise a finding, staff add a management response, then close it once you're satisfied.</p>
+
+      <div id="msg-banner" class="form-msg no-print"></div>
+
+      <div class="form-panel no-print" style="max-width:600px;margin-bottom:30px;">
+        <h3 class="mt-0">Raise a finding</h3>
+        <div class="field-row two">
+          <div class="field">
+            <label for="new-area">Area</label>
+            <select id="new-area">
+              <option>Loans</option>
+              <option>Savings</option>
+              <option>Shares</option>
+              <option>Governance</option>
+              <option>ICT</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="new-severity">Severity</label>
+            <select id="new-severity">
+              <option>Low</option>
+              <option selected>Medium</option>
+              <option>High</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="new-finding">Finding</label>
+          <textarea id="new-finding" rows="3" placeholder="Describe what was found during review"></textarea>
+        </div>
+        <button class="btn btn-green btn-block" id="raise-btn">Raise finding</button>
+      </div>
+
+      <div style="margin-bottom:20px;" class="no-print">
+        <select id="filter-status" style="padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
+          <option value="open">Open &amp; Responded</option>
+          <option value="Closed">Closed</option>
+          <option value="all">All findings</option>
+        </select>
+      </div>
+
+      <div id="findings-wrap"><p class="text-soft">Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/supervisory.js"></script>
+<script>
+let currentUser = null;
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('raise-btn').addEventListener('click', async () => {
+  const area = document.getElementById('new-area').value;
+  const severity = document.getElementById('new-severity').value;
+  const text = document.getElementById('new-finding').value.trim();
+
+  if (!text) { showMsg('Describe the finding before submitting.', 'error'); return; }
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+
+  const { error } = await supabaseClient.from('audit_findings').insert([{
+    area, severity, finding_text: text, raised_by_email: session.user.email
+  }]);
+
+  if (error) { showMsg('Could not raise this finding.', 'error'); return; }
+
+  showMsg('Finding raised.', 'success');
+  document.getElementById('new-finding').value = '';
+  loadFindings();
+});
+
+function severityBadge(s) {
+  if (s === 'High') return '<span class="badge" style="background:var(--brick);color:var(--white);">High</span>';
+  if (s === 'Low') return '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Low</span>';
+  return '<span class="badge" style="background:var(--gold);">Medium</span>';
+}
+
+function statusBadge(s) {
+  if (s === 'Closed') return '<span class="badge badge-green">Closed</span>';
+  if (s === 'Responded') return '<span class="badge" style="background:var(--indigo);color:var(--white);">Responded</span>';
+  return '<span class="badge" style="background:var(--brick);color:var(--white);">Open</span>';
+}
+
+async function loadFindings() {
+  const filter = document.getElementById('filter-status').value;
+  let query = supabaseClient.from('audit_findings').select('*').order('created_at', { ascending: false });
+  if (filter === 'open') query = query.neq('status', 'Closed');
+  else if (filter !== 'all') query = query.eq('status', filter);
+
+  const { data: findings, error } = await query;
+  const wrap = document.getElementById('findings-wrap');
+
+  if (error || !findings || findings.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No findings in this view.</div>';
+    return;
+  }
+
+  wrap.innerHTML = findings.map(f => `
+    <div class="app-card ${f.status === 'Closed' ? 'status-approved' : ''}">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${escapeHtml(f.finding_number)} — ${escapeHtml(f.area)}</h3>
+        <div>${severityBadge(f.severity)} ${statusBadge(f.status)}</div>
+      </div>
+      <p style="margin:8px 0;">${escapeHtml(f.finding_text)}</p>
+      <p class="text-soft" style="font-size:0.82rem;margin:0 0 10px;">Raised ${formatDate(f.created_at)} by ${escapeHtml(f.raised_by_email || 'unknown')}</p>
+
+      ${f.management_response ? `
+        <div style="background:var(--stone);padding:12px 14px;margin-bottom:10px;">
+          <strong style="font-size:0.85rem;color:var(--indigo);">Management response</strong>
+          <p style="margin:6px 0 0;">${escapeHtml(f.management_response)}</p>
+          <p class="text-soft" style="font-size:0.8rem;margin:6px 0 0;">${formatDate(f.response_at)} — ${escapeHtml(f.responded_by_email || '')}</p>
+        </div>
+      ` : ''}
+
+      ${f.status !== 'Closed' ? `
+        <div class="app-actions no-print" style="flex-direction:column;align-items:stretch;">
+          ${!f.management_response ? `
+            <textarea class="response-input" data-id="${f.id}" rows="2" placeholder="Add management response…" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;"></textarea>
+            <button class="btn btn-outline-dark btn-sm respond-btn" data-id="${f.id}" style="margin-bottom:10px;align-self:flex-start;">Add response</button>
+          ` : ''}
+          <button class="btn btn-green btn-sm close-btn" data-id="${f.id}" style="align-self:flex-start;">Close finding</button>
+        </div>
+      ` : `<p class="text-soft" style="font-size:0.82rem;">Closed ${formatDate(f.closed_at)}</p>`}
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.respond-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const text = document.querySelector(`.response-input[data-id="${id}"]`).value.trim();
+      if (!text) { showMsg('Enter a response before submitting.', 'error'); return; }
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      await supabaseClient.from('audit_findings').update({
+        management_response: text, response_at: new Date().toISOString(),
+        responded_by_email: session.user.email, status: 'Responded'
+      }).eq('id', id);
+
+      showMsg('Response added.', 'success');
+      loadFindings();
+    });
+  });
+
+  wrap.querySelectorAll('.close-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await supabaseClient.from('audit_findings').update({ status: 'Closed', closed_at: new Date().toISOString() }).eq('id', btn.getAttribute('data-id'));
+      showMsg('Finding closed.', 'success');
+      loadFindings();
+    });
+  });
+}
+
+document.getElementById('filter-status').addEventListener('change', loadFindings);
+
+(async () => {
+  currentUser = await requireSupervisoryAuth();
+  if (!currentUser) return;
+  await loadFindings();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — SODIS-SACCO Supervisory Board Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Supervisory Board</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="verification.html">Verification</a></li>
+        <li><a href="audit-findings.html">Audit Findings</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-supervisory-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Supervisory Board account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="welcome-banner">
+        <h2>Supervisory Board Dashboard</h2>
+        <p>Independent oversight — read access to verify, no ability to edit operational records.</p>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card" style="border-top-color:var(--brick);">
+          <div class="label">Open audit findings</div>
+          <div class="figure" id="open-findings">—</div>
+        </div>
+        <div class="summary-card gold">
+          <div class="label">High severity, unresolved</div>
+          <div class="figure" id="high-severity">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Unimplemented resolutions</div>
+          <div class="figure" id="pending-resolutions">—</div>
+        </div>
+      </div>
+
+      <div class="section-head" style="margin-bottom:16px;">
+        <h2 style="font-size:1.2rem;">Quick actions</h2>
+      </div>
+      <div class="grid grid-3">
+        <a href="verification.html" class="btn btn-outline-dark btn-block">Verify loans, savings &amp; shares</a>
+        <a href="audit-findings.html" class="btn btn-outline-dark btn-block">Raise an audit finding</a>
+        <a href="verification.html#resolutions" class="btn btn-outline-dark btn-block">Follow up resolutions</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/supervisory.js"></script>
+<script>
+(async () => {
+  const user = await requireSupervisoryAuth();
+  if (!user) return;
+
+  const { count: openCount } = await supabaseClient
+    .from('audit_findings').select('*', { count: 'exact', head: true }).neq('status', 'Closed');
+  document.getElementById('open-findings').textContent = openCount ?? 0;
+
+  const { count: highCount } = await supabaseClient
+    .from('audit_findings').select('*', { count: 'exact', head: true }).eq('severity', 'High').neq('status', 'Closed');
+  document.getElementById('high-severity').textContent = highCount ?? 0;
+
+  const { count: boardPending } = await supabaseClient
+    .from('board_resolutions').select('*', { count: 'exact', head: true }).in('status', ['Pending', 'In Progress']);
+  const { count: agmPending } = await supabaseClient
+    .from('agm_resolutions').select('*', { count: 'exact', head: true }).eq('status', 'Open').eq('requires_vote', true);
+  document.getElementById('pending-resolutions').textContent = (boardPending ?? 0) + (agmPending ?? 0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verification — SODIS-SACCO Supervisory Board Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Supervisory Board</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="verification.html">Verification</a></li>
+        <li><a href="audit-findings.html">Audit Findings</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-supervisory-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Supervisory Board account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Verification</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Read-only access — everything here reflects the live operational data, with no ability to edit it from this portal.</p>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Portfolio summary</h2>
+      </div>
+      <div class="summary-grid" style="margin-bottom:36px;">
+        <div class="summary-card">
+          <div class="label">Total loans outstanding</div>
+          <div class="figure" id="loans-total">—</div>
+        </div>
+        <div class="summary-card gold">
+          <div class="label">Total member savings</div>
+          <div class="figure" id="savings-total">—</div>
+        </div>
+        <div class="summary-card green">
+          <div class="label">Total share capital</div>
+          <div class="figure" id="shares-total">—</div>
+        </div>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Loans</h2>
+      </div>
+      <div style="margin-bottom:14px;">
+        <input type="text" id="loan-search" placeholder="Search by member name or membership number" style="max-width:400px;padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
+      </div>
+      <div id="loans-wrap" style="margin-bottom:36px;"><p class="text-soft">Loading…</p></div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Savings accounts</h2>
+      </div>
+      <div id="savings-wrap" style="margin-bottom:36px;"><p class="text-soft">Loading…</p></div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Shares</h2>
+      </div>
+      <div id="shares-wrap" style="margin-bottom:36px;"><p class="text-soft">Loading…</p></div>
+
+      <div class="section-head" style="margin-bottom:14px;" id="resolutions">
+        <h2 style="font-size:1.1rem;">Resolution follow-up</h2>
+      </div>
+      <p class="text-soft" style="margin-bottom:14px;font-size:0.88rem;">Board and AGM resolutions not yet marked Completed — for checking whether they've actually been implemented.</p>
+      <div id="resolutions-wrap"><p class="text-soft">Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/supervisory.js"></script>
+<script>
+let allLoans = [];
+
+async function loadSummary() {
+  const { data: loans } = await supabaseClient.from('loans').select('outstanding_balance, status');
+  const outstandingTotal = (loans || []).filter(l => l.status !== 'Cleared').reduce((s, l) => s + Number(l.outstanding_balance || 0), 0);
+  document.getElementById('loans-total').textContent = formatUGX(outstandingTotal);
+
+  const { data: savingsAccounts } = await supabaseClient.from('savings_accounts').select('balance');
+  const savingsTotal = (savingsAccounts || []).reduce((s, a) => s + Number(a.balance || 0), 0);
+  document.getElementById('savings-total').textContent = formatUGX(savingsTotal);
+
+  const { data: shares } = await supabaseClient.from('shares').select('number_of_shares, share_value');
+  const sharesTotal = (shares || []).reduce((s, a) => s + Number(a.number_of_shares || 0) * Number(a.share_value || 0), 0);
+  document.getElementById('shares-total').textContent = formatUGX(sharesTotal);
+}
+
+async function loadLoans() {
+  const { data: loans } = await supabaseClient
+    .from('loans')
+    .select('*, members(full_name, membership_number)')
+    .order('disbursed_at', { ascending: false });
+
+  allLoans = loans || [];
+  renderLoans(allLoans);
+}
+
+function renderLoans(loans) {
+  const wrap = document.getElementById('loans-wrap');
+  if (!loans || loans.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No loans on record.</div>';
+    return;
+  }
+
+  const statusBadge = (s) => s === 'Cleared' ? '<span class="badge badge-green">Cleared</span>' : s === 'Overdue' ? '<span class="badge" style="background:var(--brick);color:var(--white);">Overdue</span>' : '<span class="badge">Active</span>';
+
+  wrap.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Member</th><th>Product</th><th style="text-align:right;">Principal</th><th style="text-align:right;">Outstanding</th><th>Disbursed</th><th>Status</th></tr></thead>
+      <tbody>
+        ${loans.map(l => {
+          const m = l.members || {};
+          return `<tr>
+            <td>${escapeHtml(m.full_name || '—')}<br><span class="text-soft" style="font-size:0.8rem;">${escapeHtml(m.membership_number || '')}</span></td>
+            <td>${escapeHtml(l.product || '')}</td>
+            <td class="num">${formatUGX(l.principal)}</td>
+            <td class="num">${formatUGX(l.outstanding_balance)}</td>
+            <td>${formatDate(l.disbursed_at)}</td>
+            <td>${statusBadge(l.status)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+document.getElementById('loan-search').addEventListener('input', (e) => {
+  const term = e.target.value.trim().toLowerCase();
+  if (!term) { renderLoans(allLoans); return; }
+  renderLoans(allLoans.filter(l => {
+    const m = l.members || {};
+    return (m.full_name || '').toLowerCase().includes(term) || (m.membership_number || '').toLowerCase().includes(term);
+  }));
+});
+
+async function loadSavings() {
+  const { data: accounts } = await supabaseClient
+    .from('savings_accounts')
+    .select('*, members(full_name, membership_number)')
+    .order('balance', { ascending: false })
+    .limit(50);
+
+  const wrap = document.getElementById('savings-wrap');
+  if (!accounts || accounts.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No savings accounts on record.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <p class="text-soft" style="font-size:0.82rem;margin-bottom:8px;">Showing up to 50 accounts, highest balance first.</p>
+    <table class="data-table">
+      <thead><tr><th>Member</th><th style="text-align:right;">Balance</th><th>Last updated</th></tr></thead>
+      <tbody>
+        ${accounts.map(a => {
+          const m = a.members || {};
+          return `<tr>
+            <td>${escapeHtml(m.full_name || '—')}<br><span class="text-soft" style="font-size:0.8rem;">${escapeHtml(m.membership_number || '')}</span></td>
+            <td class="num">${formatUGX(a.balance)}</td>
+            <td>${formatDate(a.updated_at)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function loadShares() {
+  const { data: shares } = await supabaseClient
+    .from('shares')
+    .select('*, members(full_name, membership_number)')
+    .order('number_of_shares', { ascending: false })
+    .limit(50);
+
+  const wrap = document.getElementById('shares-wrap');
+  if (!shares || shares.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No share accounts on record.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <p class="text-soft" style="font-size:0.82rem;margin-bottom:8px;">Showing up to 50 accounts, most shares first.</p>
+    <table class="data-table">
+      <thead><tr><th>Member</th><th style="text-align:right;">Shares</th><th style="text-align:right;">Value</th></tr></thead>
+      <tbody>
+        ${shares.map(s => {
+          const m = s.members || {};
+          return `<tr>
+            <td>${escapeHtml(m.full_name || '—')}<br><span class="text-soft" style="font-size:0.8rem;">${escapeHtml(m.membership_number || '')}</span></td>
+            <td class="num">${s.number_of_shares}</td>
+            <td class="num">${formatUGX(s.number_of_shares * s.share_value)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function loadResolutions() {
+  const { data: boardRes } = await supabaseClient
+    .from('board_resolutions').select('*').neq('status', 'Completed').order('deadline', { ascending: true });
+  const { data: agmRes } = await supabaseClient
+    .from('agm_resolutions').select('*').eq('requires_vote', true).order('created_at', { ascending: false });
+
+  const wrap = document.getElementById('resolutions-wrap');
+  const rows = [];
+
+  (boardRes || []).forEach(r => rows.push({ ref: r.resolution_number, source: 'Board', text: r.resolution_text, status: r.status, extra: r.responsible_person, deadline: r.deadline }));
+  (agmRes || []).filter(r => r.status === 'Open').forEach(r => rows.push({ ref: r.resolution_number, source: 'AGM', text: r.proposal_text, status: 'Voting open', extra: '—', deadline: null }));
+
+  if (rows.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No outstanding resolutions — everything appears implemented.</div>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="data-table">
+      <thead><tr><th>Ref</th><th>Source</th><th>Resolution</th><th>Responsible</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.ref)}</td>
+            <td>${r.source}</td>
+            <td>${escapeHtml(r.text)}</td>
+            <td>${escapeHtml(r.extra || '—')}</td>
+            <td><span class="badge">${escapeHtml(r.status)}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+(async () => {
+  const user = await requireSupervisoryAuth();
+  if (!user) return;
+  await loadSummary();
+  await loadLoans();
+  await loadSavings();
+  await loadShares();
+  await loadResolutions();
+})();
+</script>
+</body>
+</html>
