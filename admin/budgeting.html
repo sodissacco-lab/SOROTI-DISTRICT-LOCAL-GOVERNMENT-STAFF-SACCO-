@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budgeting — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="member-accounts.html">Member Accounts</a></li>
+        <li><a href="loan-monitoring.html">Loan Monitoring</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+        <li><a href="chart-of-accounts.html">Chart of Accounts</a></li>
+        <li><a href="general-ledger.html">General Ledger</a></li>
+        <li><a href="financial-statements.html">Financial Statements</a></li>
+        <li><a href="budgeting.html">Budgeting</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Budgeting</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Set targets per account for a period, then track actual performance against them — computed live from the General Ledger.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div id="budget-list-section">
+        <div class="form-panel" style="max-width:560px;margin-bottom:24px;">
+          <h3 class="mt-0">New budget</h3>
+          <div class="field">
+            <label for="new-budget-name">Name</label>
+            <input type="text" id="new-budget-name" placeholder="e.g. FY2027 Budget">
+          </div>
+          <div class="field-row two">
+            <div class="field">
+              <label for="new-budget-start">Period start</label>
+              <input type="date" id="new-budget-start">
+            </div>
+            <div class="field">
+              <label for="new-budget-end">Period end</label>
+              <input type="date" id="new-budget-end">
+            </div>
+          </div>
+          <button class="btn btn-green btn-block" id="create-budget-btn">Create budget</button>
+        </div>
+
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Existing budgets</h2>
+        </div>
+        <div id="budgets-wrap"><p class="text-soft">Loading…</p></div>
+      </div>
+
+      <div id="budget-workspace" style="display:none;">
+        <button class="btn btn-outline-dark btn-sm" id="back-to-list-btn" style="margin-bottom:18px;">← All budgets</button>
+
+        <div class="welcome-banner">
+          <h2 id="wb-name">—</h2>
+          <p id="wb-period">—</p>
+        </div>
+
+        <div class="app-actions" style="border:none;padding:0;margin-bottom:24px;">
+          <button class="btn btn-green btn-sm" id="toggle-status-btn">—</button>
+        </div>
+
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Budgeted amounts</h2>
+        </div>
+        <div id="budget-lines-wrap" style="margin-bottom:16px;">
+          <p class="text-soft">Loading…</p>
+        </div>
+        <button class="btn btn-green" id="save-lines-btn" style="margin-bottom:36px;">Save budgeted amounts</button>
+
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Variance report</h2>
+        </div>
+        <div id="variance-wrap" style="margin-bottom:24px;">
+          <p class="text-soft">Loading…</p>
+        </div>
+
+        <div class="form-panel" style="max-width:640px;">
+          <label for="budget-notes" style="display:block;font-weight:600;color:var(--indigo);font-size:0.88rem;margin-bottom:6px;">Variance notes / corrective actions</label>
+          <textarea id="budget-notes" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" placeholder="Explain significant variances and what's being done about them…"></textarea>
+          <button class="btn btn-outline-dark" id="save-notes-btn">Save notes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+let currentBudget = null;
+let accounts = [];
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadBudgetList() {
+  const { data: budgets } = await supabaseClient.from('budgets').select('*').order('period_start', { ascending: false });
+  const wrap = document.getElementById('budgets-wrap');
+
+  if (!budgets || budgets.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No budgets created yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = budgets.map(b => `
+    <div class="app-card" style="cursor:pointer;" data-id="${b.id}">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${escapeHtml(b.name)}</h3>
+        ${b.status === 'Approved' ? '<span class="badge badge-green">Approved</span>' : '<span class="badge">Draft</span>'}
+      </div>
+      <p class="text-soft" style="margin:6px 0 0;">${formatDate(b.period_start)} — ${formatDate(b.period_end)}</p>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.app-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const { data: budget } = await supabaseClient.from('budgets').select('*').eq('id', card.getAttribute('data-id')).single();
+      openBudget(budget);
+    });
+  });
+}
+
+document.getElementById('create-budget-btn').addEventListener('click', async () => {
+  const name = document.getElementById('new-budget-name').value.trim();
+  const start = document.getElementById('new-budget-start').value;
+  const end = document.getElementById('new-budget-end').value;
+
+  if (!name || !start || !end) { showMsg('Fill in a name and both dates.', 'error'); return; }
+  if (end <= start) { showMsg('The period end must be after the start.', 'error'); return; }
+
+  const { data: budget, error } = await supabaseClient.from('budgets')
+    .insert([{ name, period_start: start, period_end: end }]).select().single();
+
+  if (error || !budget) { showMsg('Could not create the budget.', 'error'); return; }
+
+  // Seed a budget line (at 0) for every active Income/Expense account
+  const incomeExpense = accounts.filter(a => a.account_class === 'Income' || a.account_class === 'Expense');
+  if (incomeExpense.length) {
+    await supabaseClient.from('budget_lines').insert(
+      incomeExpense.map(a => ({ budget_id: budget.id, account_id: a.id, budgeted_amount: 0 }))
+    );
+  }
+
+  showMsg('Budget created.', 'success');
+  document.getElementById('new-budget-name').value = '';
+  openBudget(budget);
+  loadBudgetList();
+});
+
+function openBudget(budget) {
+  currentBudget = budget;
+  document.getElementById('budget-list-section').style.display = 'none';
+  document.getElementById('budget-workspace').style.display = 'block';
+  document.getElementById('wb-name').textContent = budget.name;
+  document.getElementById('wb-period').textContent = `${formatDate(budget.period_start)} — ${formatDate(budget.period_end)}`;
+  document.getElementById('budget-notes').value = budget.notes || '';
+  updateStatusButton();
+  loadBudgetLines();
+  loadVariance();
+}
+
+function updateStatusButton() {
+  const btn = document.getElementById('toggle-status-btn');
+  if (currentBudget.status === 'Approved') {
+    btn.textContent = 'Revert to Draft';
+    btn.className = 'btn btn-outline-dark btn-sm';
+  } else {
+    btn.textContent = 'Mark as Approved';
+    btn.className = 'btn btn-green btn-sm';
+  }
+}
+
+document.getElementById('toggle-status-btn').addEventListener('click', async () => {
+  const newStatus = currentBudget.status === 'Approved' ? 'Draft' : 'Approved';
+  await supabaseClient.from('budgets').update({ status: newStatus }).eq('id', currentBudget.id);
+  currentBudget.status = newStatus;
+  updateStatusButton();
+  showMsg(`Budget marked ${newStatus}.`, 'success');
+});
+
+document.getElementById('back-to-list-btn').addEventListener('click', () => {
+  document.getElementById('budget-workspace').style.display = 'none';
+  document.getElementById('budget-list-section').style.display = 'block';
+});
+
+async function loadBudgetLines() {
+  const { data: lines } = await supabaseClient
+    .from('budget_lines')
+    .select('*, chart_of_accounts(code, name, account_class)')
+    .eq('budget_id', currentBudget.id);
+
+  const wrap = document.getElementById('budget-lines-wrap');
+  if (!lines || lines.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No Income/Expense accounts found to budget for.</div>';
+    return;
+  }
+
+  const groups = { Income: [], Expense: [] };
+  lines.forEach(l => { if (groups[l.chart_of_accounts.account_class]) groups[l.chart_of_accounts.account_class].push(l); });
+
+  wrap.innerHTML = Object.entries(groups).map(([cls, rows]) => {
+    if (rows.length === 0) return '';
+    rows.sort((a, b) => a.chart_of_accounts.code.localeCompare(b.chart_of_accounts.code));
+    return `
+      <h4 style="color:var(--indigo);margin:16px 0 8px;font-size:0.95rem;">${cls}</h4>
+      ${rows.map(l => `
+        <div class="stat-line">
+          <label>${escapeHtml(l.chart_of_accounts.code)} — ${escapeHtml(l.chart_of_accounts.name)}</label>
+          <input type="number" class="budget-line-input" data-line-id="${l.id}" value="${l.budgeted_amount}" min="0">
+        </div>
+      `).join('')}
+    `;
+  }).join('');
+}
+
+document.getElementById('save-lines-btn').addEventListener('click', async () => {
+  const inputs = document.querySelectorAll('.budget-line-input');
+  const updates = Array.from(inputs).map(input =>
+    supabaseClient.from('budget_lines').update({ budgeted_amount: Number(input.value) || 0 }).eq('id', input.getAttribute('data-line-id'))
+  );
+  await Promise.all(updates);
+  showMsg('Budgeted amounts saved.', 'success');
+  loadVariance();
+});
+
+document.getElementById('save-notes-btn').addEventListener('click', async () => {
+  const notes = document.getElementById('budget-notes').value.trim();
+  await supabaseClient.from('budgets').update({ notes }).eq('id', currentBudget.id);
+  showMsg('Notes saved.', 'success');
+});
+
+async function loadVariance() {
+  const { data: lines } = await supabaseClient
+    .from('budget_lines')
+    .select('*, chart_of_accounts(code, name, account_class)')
+    .eq('budget_id', currentBudget.id);
+
+  const { data: journalLines } = await supabaseClient
+    .from('journal_entry_lines')
+    .select('account_id, debit, credit, journal_entries!inner(entry_date)')
+    .gte('journal_entries.entry_date', currentBudget.period_start)
+    .lte('journal_entries.entry_date', currentBudget.period_end);
+
+  const actuals = {};
+  (journalLines || []).forEach(l => {
+    actuals[l.account_id] = actuals[l.account_id] || { debit: 0, credit: 0 };
+    actuals[l.account_id].debit += Number(l.debit || 0);
+    actuals[l.account_id].credit += Number(l.credit || 0);
+  });
+
+  function actualFor(accountId, cls) {
+    const a = actuals[accountId] || { debit: 0, credit: 0 };
+    return cls === 'Income' ? (a.credit - a.debit) : (a.debit - a.credit);
+  }
+
+  const wrap = document.getElementById('variance-wrap');
+  if (!lines || lines.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No budget lines to compare.</div>';
+    return;
+  }
+
+  const groups = { Income: [], Expense: [] };
+  lines.forEach(l => { if (groups[l.chart_of_accounts.account_class]) groups[l.chart_of_accounts.account_class].push(l); });
+
+  let totalBudgetedIncome = 0, totalActualIncome = 0, totalBudgetedExpense = 0, totalActualExpense = 0;
+
+  const renderGroup = (cls, rows) => {
+    rows.sort((a, b) => a.chart_of_accounts.code.localeCompare(b.chart_of_accounts.code));
+    return `
+      <h4 style="color:var(--indigo);margin:16px 0 8px;font-size:0.95rem;">${cls}</h4>
+      <table class="data-table">
+        <thead><tr><th>Account</th><th style="text-align:right;">Budgeted</th><th style="text-align:right;">Actual</th><th style="text-align:right;">Variance</th><th></th></tr></thead>
+        <tbody>
+          ${rows.map(l => {
+            const actual = actualFor(l.account_id, cls);
+            const variance = actual - Number(l.budgeted_amount);
+            const isBad = cls === 'Expense' ? variance > 0 : variance < 0;
+            if (cls === 'Income') totalBudgetedIncome += Number(l.budgeted_amount), totalActualIncome += actual;
+            else totalBudgetedExpense += Number(l.budgeted_amount), totalActualExpense += actual;
+            return `
+              <tr>
+                <td>${escapeHtml(l.chart_of_accounts.code)} — ${escapeHtml(l.chart_of_accounts.name)}</td>
+                <td class="num">${formatUGX(l.budgeted_amount)}</td>
+                <td class="num">${formatUGX(actual)}</td>
+                <td class="num" style="color:${isBad ? 'var(--brick)' : 'var(--green)'};">${variance >= 0 ? '+' : ''}${formatUGX(variance)}</td>
+                <td>${isBad ? '<span class="badge" style="background:var(--brick);color:var(--white);">' + (cls === 'Expense' ? 'Over budget' : 'Under target') + '</span>' : '<span class="badge badge-green">On track</span>'}</td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  };
+
+  let html = renderGroup('Income', groups.Income) + renderGroup('Expense', groups.Expense);
+
+  const budgetedSurplus = totalBudgetedIncome - totalBudgetedExpense;
+  const actualSurplus = totalActualIncome - totalActualExpense;
+
+  html += `
+    <table class="data-table" style="margin-top:16px;">
+      <tbody>
+        <tr class="statement-total-row"><td>Budgeted surplus/(deficit)</td><td class="num">${formatUGX(budgetedSurplus)}</td></tr>
+        <tr class="statement-total-row"><td>Actual surplus/(deficit)</td><td class="num">${formatUGX(actualSurplus)}</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  wrap.innerHTML = html;
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+
+  const { data } = await supabaseClient.from('chart_of_accounts').select('*').eq('is_active', true).order('code');
+  accounts = data || [];
+
+  await loadBudgetList();
+})();
+</script>
+</body>
+</html>
