@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — SODIS-SACCO Vetting Committee Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Vetting Committee</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="candidates.html">Positions &amp; Candidates</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-vetting-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Vetting Committee account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="welcome-banner">
+        <h2>Vetting Committee Dashboard</h2>
+        <p>Application → Document Review → Eligibility Check → Vetting → Recommendation → AGM</p>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card gold">
+          <div class="label">Open positions</div>
+          <div class="figure" id="open-positions">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Applications awaiting review</div>
+          <div class="figure" id="pending-applications">—</div>
+        </div>
+        <div class="summary-card green">
+          <div class="label">Recommended candidates</div>
+          <div class="figure" id="recommended-count">—</div>
+        </div>
+      </div>
+
+      <div class="section-head" style="margin-bottom:16px;">
+        <h2 style="font-size:1.2rem;">Quick actions</h2>
+      </div>
+      <div class="grid grid-2">
+        <a href="candidates.html" class="btn btn-outline-dark btn-block">Manage positions</a>
+        <a href="candidates.html" class="btn btn-outline-dark btn-block">Review applications</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/vetting.js"></script>
+<script>
+(async () => {
+  const user = await requireVettingAuth();
+  if (!user) return;
+
+  const { count: openCount } = await supabaseClient
+    .from('leadership_positions').select('*', { count: 'exact', head: true }).eq('is_open', true);
+  document.getElementById('open-positions').textContent = openCount ?? 0;
+
+  const { count: pendingCount } = await supabaseClient
+    .from('candidate_applications').select('*', { count: 'exact', head: true }).in('status', ['Submitted', 'Under Review']);
+  document.getElementById('pending-applications').textContent = pendingCount ?? 0;
+
+  const { count: recommendedCount } = await supabaseClient
+    .from('candidate_applications').select('*', { count: 'exact', head: true }).eq('status', 'Vetted - Recommended');
+  document.getElementById('recommended-count').textContent = recommendedCount ?? 0;
+})();
+</script>
+</body>
+</html>

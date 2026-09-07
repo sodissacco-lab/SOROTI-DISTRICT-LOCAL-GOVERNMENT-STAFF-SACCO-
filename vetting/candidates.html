@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Positions &amp; Candidates — SODIS-SACCO Vetting Committee Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  @media print {
+    .portal-sidebar, .portal-topbar, .no-print { display: none !important; }
+    .portal-main { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Vetting Committee</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="candidates.html">Positions &amp; Candidates</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar no-print">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-vetting-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Vetting Committee account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="print-letterhead">
+        <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+        <div class="letterhead-text">
+          <strong>SODIS-SACCO</strong>
+          <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+          <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;" class="no-print">
+        <h1 style="font-size:1.4rem;margin:0;">Positions &amp; Candidates</h1>
+        <button class="btn btn-outline-dark" onclick="window.print()">Print recommendation list</button>
+      </div>
+
+      <div id="msg-banner" class="form-msg no-print"></div>
+
+      <div class="form-panel no-print" style="max-width:520px;margin-bottom:24px;">
+        <h3 class="mt-0">Open a position</h3>
+        <div class="field-row two">
+          <div class="field">
+            <label for="new-title">Position title</label>
+            <input type="text" id="new-title" placeholder="e.g. Board Treasurer">
+          </div>
+          <div class="field">
+            <label for="new-year">Election year</label>
+            <input type="number" id="new-year" placeholder="e.g. 2027">
+          </div>
+        </div>
+        <button class="btn btn-green btn-block" id="add-position-btn">Open position</button>
+      </div>
+
+      <div class="section-head no-print" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Positions</h2>
+      </div>
+      <div id="positions-wrap" class="no-print" style="margin-bottom:36px;"><p class="text-soft">Loading…</p></div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Candidate applications</h2>
+      </div>
+      <div style="margin-bottom:20px;" class="no-print">
+        <select id="filter-status" style="padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
+          <option value="pending">Awaiting review</option>
+          <option value="Vetted - Recommended">Recommended</option>
+          <option value="Not Recommended">Not recommended</option>
+          <option value="all">All applications</option>
+        </select>
+      </div>
+
+      <div id="candidates-wrap"><p class="text-soft">Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/vetting.js"></script>
+<script>
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadPositions() {
+  const { data: positions } = await supabaseClient.from('leadership_positions').select('*').order('created_at', { ascending: false });
+  const wrap = document.getElementById('positions-wrap');
+
+  if (!positions || positions.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No positions opened yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = positions.map(p => `
+    <div class="app-card">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${escapeHtml(p.title)}${p.election_year ? ' — ' + p.election_year : ''}</h3>
+        ${p.is_open ? '<span class="badge badge-green">Open</span>' : '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Closed</span>'}
+      </div>
+      <div class="app-actions">
+        <button class="btn btn-outline-dark btn-sm toggle-position" data-id="${p.id}" data-open="${p.is_open}">${p.is_open ? 'Close applications' : 'Reopen applications'}</button>
+      </div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.toggle-position').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const current = btn.getAttribute('data-open') === 'true';
+      await supabaseClient.from('leadership_positions').update({ is_open: !current }).eq('id', btn.getAttribute('data-id'));
+      loadPositions();
+    });
+  });
+}
+
+document.getElementById('add-position-btn').addEventListener('click', async () => {
+  const title = document.getElementById('new-title').value.trim();
+  const year = Number(document.getElementById('new-year').value) || null;
+
+  if (!title) { showMsg('Enter a position title.', 'error'); return; }
+
+  const { error } = await supabaseClient.from('leadership_positions').insert([{ title, election_year: year }]);
+  if (error) { showMsg('Could not open this position.', 'error'); return; }
+
+  showMsg('Position opened for applications.', 'success');
+  document.getElementById('new-title').value = '';
+  document.getElementById('new-year').value = '';
+  loadPositions();
+});
+
+function statusBadge(s) {
+  if (s === 'Vetted - Recommended') return '<span class="badge badge-green">Recommended</span>';
+  if (s === 'Not Recommended') return '<span class="badge" style="background:var(--brick);color:var(--white);">Not recommended</span>';
+  if (s === 'Under Review') return '<span class="badge" style="background:var(--indigo);color:var(--white);">Under review</span>';
+  return '<span class="badge">Submitted</span>';
+}
+
+async function loadCandidates() {
+  const filter = document.getElementById('filter-status').value;
+  let query = supabaseClient
+    .from('candidate_applications')
+    .select('*, members(full_name, membership_number, phone), leadership_positions(title, election_year)')
+    .order('submitted_at', { ascending: false });
+
+  if (filter === 'pending') query = query.in('status', ['Submitted', 'Under Review']);
+  else if (filter !== 'all') query = query.eq('status', filter);
+
+  const { data: candidates, error } = await query;
+  const wrap = document.getElementById('candidates-wrap');
+
+  if (error || !candidates || candidates.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No applications in this view.</div>';
+    return;
+  }
+
+  wrap.innerHTML = candidates.map(c => {
+    const m = c.members || {};
+    const pos = c.leadership_positions || {};
+    const isPending = c.status === 'Submitted' || c.status === 'Under Review';
+
+    return `
+      <div class="app-card ${c.status === 'Vetted - Recommended' ? 'status-approved' : c.status === 'Not Recommended' ? 'status-rejected' : ''}" data-id="${c.id}">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(m.full_name || 'Unknown')} — ${escapeHtml(pos.title || 'Position')} <span class="text-soft" style="font-size:0.8rem;font-weight:400;">${escapeHtml(c.application_number || '')}</span></h3>
+          ${statusBadge(c.status)}
+        </div>
+        <div class="app-meta">
+          <div><span class="k">Membership No:</span> ${escapeHtml(m.membership_number || '—')}</div>
+          <div><span class="k">Phone:</span> ${escapeHtml(m.phone || '—')}</div>
+          <div><span class="k">Submitted:</span> ${formatDate(c.submitted_at)}</div>
+          ${c.decided_at ? `<div><span class="k">Decided:</span> ${formatDate(c.decided_at)}</div>` : ''}
+        </div>
+        <h4 style="font-size:0.88rem;color:var(--indigo);margin:12px 0 4px;">Candidate statement</h4>
+        <p style="margin:0 0 8px;">${escapeHtml(c.statement || '—')}</p>
+        <h4 style="font-size:0.88rem;color:var(--indigo);margin:12px 0 4px;">Qualifications</h4>
+        <p style="margin:0 0 8px;">${escapeHtml(c.qualifications || '—')}</p>
+        <h4 style="font-size:0.88rem;color:var(--indigo);margin:12px 0 4px;">Experience</h4>
+        <p style="margin:0 0 8px;">${escapeHtml(c.experience || '—')}</p>
+        ${c.other_credentials ? `<h4 style="font-size:0.88rem;color:var(--indigo);margin:12px 0 4px;">Other credentials</h4><p style="margin:0 0 8px;">${escapeHtml(c.other_credentials)}</p>` : ''}
+        ${c.vetting_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Vetting notes:</strong> ${escapeHtml(c.vetting_notes)}</p>` : ''}
+        ${isPending ? `
+          <div class="app-actions no-print" style="flex-direction:column;align-items:stretch;">
+            <textarea class="vetting-notes-input" placeholder="Eligibility check / vetting notes" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" rows="2">${escapeHtml(c.vetting_notes || '')}</textarea>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-outline-dark btn-sm mark-review-btn">Mark under review</button>
+              <button class="btn btn-green btn-sm recommend-btn">Recommend to AGM</button>
+              <button class="btn btn-danger btn-sm reject-btn">Not recommended</button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('.mark-review-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const notes = card.querySelector('.vetting-notes-input').value.trim();
+      await supabaseClient.from('candidate_applications').update({ status: 'Under Review', vetting_notes: notes || null }).eq('id', card.getAttribute('data-id'));
+      showMsg('Marked under review.', 'success');
+      loadCandidates();
+    });
+  });
+
+  wrap.querySelectorAll('.recommend-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const notes = card.querySelector('.vetting-notes-input').value.trim();
+      await supabaseClient.from('candidate_applications').update({
+        status: 'Vetted - Recommended', vetting_notes: notes || null, decided_at: new Date().toISOString()
+      }).eq('id', card.getAttribute('data-id'));
+      showMsg('Candidate recommended to the AGM.', 'success');
+      loadCandidates();
+    });
+  });
+
+  wrap.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const notes = card.querySelector('.vetting-notes-input').value.trim();
+      if (!notes) { showMsg('Please record a reason in the vetting notes before marking not recommended.', 'error'); return; }
+      await supabaseClient.from('candidate_applications').update({
+        status: 'Not Recommended', vetting_notes: notes, decided_at: new Date().toISOString()
+      }).eq('id', card.getAttribute('data-id'));
+      showMsg('Candidate marked not recommended.', 'success');
+      loadCandidates();
+    });
+  });
+}
+
+document.getElementById('filter-status').addEventListener('change', loadCandidates);
+
+(async () => {
+  const user = await requireVettingAuth();
+  if (!user) return;
+  await loadPositions();
+  await loadCandidates();
+})();
+</script>
+</body>
+</html>
