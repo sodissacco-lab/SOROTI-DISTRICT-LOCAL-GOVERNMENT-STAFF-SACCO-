@@ -655,6 +655,26 @@ footer.site-footer {
 .stat-line input { width: 220px; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-body); text-align: right; }
 
 /* ============================================================
+   PRINT LETTERHEAD — appears only on printed output, never on screen
+   ============================================================ */
+.print-letterhead { display: none; }
+@media print {
+  .print-letterhead {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 3px solid var(--gold);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+  }
+  .print-letterhead img { width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0; }
+  .print-letterhead .letterhead-text strong {
+    display: block; font-family: var(--font-head); font-size: 1.15rem; color: var(--indigo);
+  }
+  .print-letterhead .letterhead-text span { display: block; font-size: 0.78rem; color: var(--ink-soft); }
+}
+
+/* ============================================================
    LOAN AGREEMENTS
    ============================================================ */
 
