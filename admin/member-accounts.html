@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Accounts — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="member-accounts.html">Member Accounts</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Member Accounts</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Find a member to post savings deposits/withdrawals, share transactions, and loan repayments.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div class="form-panel" style="max-width:520px;margin-bottom:30px;">
+        <div class="field" style="margin-bottom:12px;">
+          <label for="member-search">Search by name or membership number</label>
+          <input type="text" id="member-search" placeholder="Start typing…" autocomplete="off">
+        </div>
+        <div id="search-results"></div>
+      </div>
+
+      <div id="member-workspace" style="display:none;">
+        <div class="welcome-banner">
+          <h2 id="member-name">—</h2>
+          <p id="member-meta">—</p>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="label">Savings balance</div>
+            <div class="figure" id="savings-balance-figure">—</div>
+          </div>
+          <div class="summary-card gold">
+            <div class="label">Shares value</div>
+            <div class="figure" id="shares-value-figure">—</div>
+          </div>
+          <div class="summary-card green">
+            <div class="label">Total loan outstanding</div>
+            <div class="figure" id="loans-outstanding-figure">—</div>
+          </div>
+        </div>
+
+        <!-- SAVINGS -->
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Savings</h2>
+        </div>
+        <div class="form-panel" style="max-width:560px;margin-bottom:18px;">
+          <div class="field-row two">
+            <div class="field">
+              <label for="sv-type">Transaction type</label>
+              <select id="sv-type">
+                <option>Deposit</option>
+                <option>Withdrawal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sv-amount">Amount (UGX)</label>
+              <input type="number" id="sv-amount" min="1">
+            </div>
+          </div>
+          <div class="field">
+            <label for="sv-description">Description</label>
+            <input type="text" id="sv-description" placeholder="e.g. Salary deduction, over-the-counter deposit">
+          </div>
+          <button class="btn btn-green btn-block" id="sv-submit">Post savings transaction</button>
+        </div>
+        <div id="savings-history-wrap" style="margin-bottom:36px;"></div>
+
+        <!-- SHARES -->
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Shares</h2>
+        </div>
+        <div class="form-panel" style="max-width:560px;margin-bottom:18px;">
+          <div class="field-row two">
+            <div class="field">
+              <label for="sh-change">Shares change (+ to add, − to remove)</label>
+              <input type="number" id="sh-change" placeholder="e.g. 10 or -5">
+            </div>
+            <div class="field">
+              <label for="sh-amount">Amount paid/refunded (UGX)</label>
+              <input type="number" id="sh-amount" min="0">
+            </div>
+          </div>
+          <div class="field">
+            <label for="sh-description">Description</label>
+            <input type="text" id="sh-description" placeholder="e.g. Additional share purchase">
+          </div>
+          <button class="btn btn-green btn-block" id="sh-submit">Post share transaction</button>
+        </div>
+        <div id="shares-history-wrap" style="margin-bottom:36px;"></div>
+
+        <!-- LOANS -->
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Loans &amp; repayments</h2>
+        </div>
+        <div id="loans-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+let selectedMember = null;
+let currentSavingsAccount = null;
+let currentShares = null;
+let searchDebounce = null;
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('member-search').addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  const term = document.getElementById('member-search').value.trim();
+  const resultsBox = document.getElementById('search-results');
+  if (term.length < 2) { resultsBox.innerHTML = ''; return; }
+
+  searchDebounce = setTimeout(async () => {
+    const { data, error } = await supabaseClient
+      .from('members')
+      .select('*')
+      .or(`full_name.ilike.%${term}%,membership_number.ilike.%${term}%`)
+      .limit(10);
+
+    if (error || !data || data.length === 0) {
+      resultsBox.innerHTML = '<div class="guarantor-result-item text-soft">No matching members found.</div>';
+      return;
+    }
+
+    resultsBox.innerHTML = data.map(m =>
+      `<div class="guarantor-result-item" data-id="${m.id}">
+        ${escapeHtml(m.full_name)} <span class="text-soft">(${escapeHtml(m.membership_number)})</span>
+      </div>`
+    ).join('');
+
+    resultsBox.querySelectorAll('.guarantor-result-item[data-id]').forEach(item => {
+      item.addEventListener('click', async () => {
+        const { data: member } = await supabaseClient.from('members').select('*').eq('id', item.getAttribute('data-id')).single();
+        selectMember(member);
+        resultsBox.innerHTML = '';
+        document.getElementById('member-search').value = '';
+      });
+    });
+  }, 300);
+});
+
+async function selectMember(member) {
+  selectedMember = member;
+  document.getElementById('member-workspace').style.display = 'block';
+  document.getElementById('member-name').textContent = member.full_name;
+  document.getElementById('member-meta').textContent = `Membership No: ${member.membership_number} · ${member.phone || 'no phone on file'}`;
+  document.getElementById('member-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  await loadSavings();
+  await loadShares();
+  await loadLoans();
+}
+
+// ---------------- SAVINGS ----------------
+async function loadSavings() {
+  let { data: account } = await supabaseClient.from('savings_accounts').select('*').eq('member_id', selectedMember.id).maybeSingle();
+  if (!account) {
+    const { data: created } = await supabaseClient.from('savings_accounts').insert([{ member_id: selectedMember.id, balance: 0 }]).select().single();
+    account = created;
+  }
+  currentSavingsAccount = account;
+  document.getElementById('savings-balance-figure').textContent = formatUGX(account.balance);
+
+  const { data: txns } = await supabaseClient
+    .from('savings_transactions')
+    .select('*')
+    .eq('member_id', selectedMember.id)
+    .order('txn_date', { ascending: false })
+    .limit(20);
+
+  const wrap = document.getElementById('savings-history-wrap');
+  if (!txns || txns.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No savings transactions yet.</div>';
+  } else {
+    wrap.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Description</th><th style="text-align:right;">Credit</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Balance</th></tr></thead>
+        <tbody>
+          ${txns.map(t => `
+            <tr>
+              <td>${formatDate(t.txn_date)}</td>
+              <td>${escapeHtml(t.description || '')}</td>
+              <td class="num">${t.credit ? formatUGX(t.credit) : ''}</td>
+              <td class="num">${t.debit ? formatUGX(t.debit) : ''}</td>
+              <td class="num">${formatUGX(t.balance_after)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+}
+
+document.getElementById('sv-submit').addEventListener('click', async () => {
+  if (!selectedMember) return;
+  const type = document.getElementById('sv-type').value;
+  const amount = Number(document.getElementById('sv-amount').value);
+  const description = document.getElementById('sv-description').value.trim();
+
+  if (!amount || amount <= 0) { showMsg('Enter a valid amount.', 'error'); return; }
+
+  const credit = type === 'Deposit' ? amount : 0;
+  const debit = type === 'Withdrawal' ? amount : 0;
+  const newBalance = Number(currentSavingsAccount.balance) + credit - debit;
+
+  if (type === 'Withdrawal' && newBalance < 0) {
+    showMsg('This withdrawal would take the balance below zero.', 'error');
+    return;
+  }
+
+  await supabaseClient.from('savings_transactions').insert([{
+    member_id: selectedMember.id, description: description || type, credit, debit, balance_after: newBalance
+  }]);
+  await supabaseClient.from('savings_accounts').update({ balance: newBalance, updated_at: new Date().toISOString() }).eq('member_id', selectedMember.id);
+
+  showMsg('Savings transaction posted.', 'success');
+  document.getElementById('sv-amount').value = '';
+  document.getElementById('sv-description').value = '';
+  loadSavings();
+});
+
+// ---------------- SHARES ----------------
+async function loadShares() {
+  let { data: shares } = await supabaseClient.from('shares').select('*').eq('member_id', selectedMember.id).maybeSingle();
+  if (!shares) {
+    const { data: created } = await supabaseClient.from('shares').insert([{ member_id: selectedMember.id, number_of_shares: 0, share_value: 10000 }]).select().single();
+    shares = created;
+  }
+  currentShares = shares;
+  document.getElementById('shares-value-figure').textContent = formatUGX(shares.number_of_shares * shares.share_value);
+
+  const { data: txns } = await supabaseClient
+    .from('share_transactions')
+    .select('*')
+    .eq('member_id', selectedMember.id)
+    .order('txn_date', { ascending: false })
+    .limit(20);
+
+  const wrap = document.getElementById('shares-history-wrap');
+  if (!txns || txns.length === 0) {
+    wrap.innerHTML = `<div class="empty-state">No share transactions yet. Current shares: ${shares.number_of_shares} @ ${formatUGX(shares.share_value)} each.</div>`;
+  } else {
+    wrap.innerHTML = `
+      <p class="text-soft" style="margin-bottom:10px;font-size:0.88rem;">Current: ${shares.number_of_shares} shares @ ${formatUGX(shares.share_value)} each</p>
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Description</th><th style="text-align:right;">Shares change</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>
+          ${txns.map(t => `
+            <tr>
+              <td>${formatDate(t.txn_date)}</td>
+              <td>${escapeHtml(t.description || '')}</td>
+              <td class="num">${t.shares_change > 0 ? '+' : ''}${t.shares_change}</td>
+              <td class="num">${formatUGX(t.amount)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+}
+
+document.getElementById('sh-submit').addEventListener('click', async () => {
+  if (!selectedMember) return;
+  const change = Number(document.getElementById('sh-change').value);
+  const amount = Number(document.getElementById('sh-amount').value) || 0;
+  const description = document.getElementById('sh-description').value.trim();
+
+  if (!change) { showMsg('Enter a non-zero shares change.', 'error'); return; }
+
+  const newCount = currentShares.number_of_shares + change;
+  if (newCount < 0) { showMsg('This would take shares below zero.', 'error'); return; }
+
+  await supabaseClient.from('share_transactions').insert([{
+    member_id: selectedMember.id, description: description || 'Share adjustment', shares_change: change, amount
+  }]);
+  await supabaseClient.from('shares').update({ number_of_shares: newCount, updated_at: new Date().toISOString() }).eq('member_id', selectedMember.id);
+
+  showMsg('Share transaction posted.', 'success');
+  document.getElementById('sh-change').value = '';
+  document.getElementById('sh-amount').value = '';
+  document.getElementById('sh-description').value = '';
+  loadShares();
+});
+
+// ---------------- LOANS ----------------
+async function loadLoans() {
+  const { data: loans } = await supabaseClient
+    .from('loans')
+    .select('*')
+    .eq('member_id', selectedMember.id)
+    .order('disbursed_at', { ascending: false });
+
+  const wrap = document.getElementById('loans-wrap');
+  const activeLoans = (loans || []).filter(l => l.status !== 'Cleared');
+  const totalOutstanding = activeLoans.reduce((sum, l) => sum + Number(l.outstanding_balance || 0), 0);
+  document.getElementById('loans-outstanding-figure').textContent = formatUGX(totalOutstanding);
+
+  if (!loans || loans.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No loans on record for this member.</div>';
+    return;
+  }
+
+  const statusBadge = (status) => {
+    if (status === 'Cleared') return '<span class="badge badge-green">Cleared</span>';
+    if (status === 'Overdue') return '<span class="badge" style="background:var(--brick);color:var(--white);">Overdue</span>';
+    return '<span class="badge">Active</span>';
+  };
+
+  const cards = await Promise.all(loans.map(async (loan) => {
+    const { data: schedule } = await supabaseClient
+      .from('loan_repayment_schedule').select('*').eq('loan_id', loan.id).order('installment_number', { ascending: true });
+    const { data: repayments } = await supabaseClient
+      .from('loan_repayments').select('*').eq('loan_id', loan.id).order('txn_date', { ascending: false });
+
+    const scheduleRows = (schedule || []).map(s => `
+      <tr>
+        <td>#${s.installment_number}</td><td>${formatDate(s.due_date)}</td>
+        <td class="num">${formatUGX(s.amount)}</td><td>${s.status}</td>
+      </tr>`).join('');
+
+    const repaymentRows = (repayments || []).map(r => `
+      <tr>
+        <td>${formatDate(r.txn_date)}</td>
+        <td class="num">${formatUGX(r.amount)}</td>
+        <td class="num">${formatUGX(r.principal_portion)}</td>
+        <td class="num">${formatUGX(r.interest_portion)}</td>
+      </tr>`).join('');
+
+    const canRepay = loan.status !== 'Cleared';
+
+    return `
+      <div class="loan-card" data-loan-id="${loan.id}">
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
+          <h3>${escapeHtml(loan.product || 'Loan')}</h3>
+          ${statusBadge(loan.status)}
+        </div>
+        <div class="loan-meta">
+          <div class="item"><div class="label">Principal</div><div class="value">${formatUGX(loan.principal)}</div></div>
+          <div class="item"><div class="label">Outstanding</div><div class="value">${formatUGX(loan.outstanding_balance)}</div></div>
+          <div class="item"><div class="label">Disbursed</div><div class="value" style="font-size:0.95rem;">${formatDate(loan.disbursed_at)}</div></div>
+          <div class="item"><div class="label">Next installment</div><div class="value" style="font-size:0.95rem;">${loan.next_installment_amount ? formatUGX(loan.next_installment_amount) : '—'}</div></div>
+        </div>
+
+        ${canRepay ? `
+          <div class="sign-box" style="margin-top:16px;">
+            <label>Post a repayment</label>
+            <input type="number" class="repay-amount" min="1" placeholder="Amount (UGX)" style="margin-bottom:10px;">
+            <button class="btn btn-green btn-sm repay-btn">Post repayment</button>
+          </div>
+        ` : ''}
+
+        ${scheduleRows ? `
+          <hr class="ledger-rule" style="margin:18px 0;">
+          <div style="font-size:0.88rem;font-weight:600;color:var(--indigo);margin-bottom:8px;">Schedule</div>
+          <table class="data-table">
+            <thead><tr><th>#</th><th>Due</th><th style="text-align:right;">Amount</th><th>Status</th></tr></thead>
+            <tbody>${scheduleRows}</tbody>
+          </table>
+        ` : ''}
+
+        ${repaymentRows ? `
+          <hr class="ledger-rule" style="margin:18px 0;">
+          <div style="font-size:0.88rem;font-weight:600;color:var(--indigo);margin-bottom:8px;">Repayment history</div>
+          <table class="data-table">
+            <thead><tr><th>Date</th><th style="text-align:right;">Amount</th><th style="text-align:right;">Principal</th><th style="text-align:right;">Interest</th></tr></thead>
+            <tbody>${repaymentRows}</tbody>
+          </table>
+        ` : ''}
+      </div>
+    `;
+  }));
+
+  wrap.innerHTML = cards.join('');
+
+  wrap.querySelectorAll('.repay-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.loan-card');
+      const loanId = card.getAttribute('data-loan-id');
+      const amount = Number(card.querySelector('.repay-amount').value);
+      if (!amount || amount <= 0) { showMsg('Enter a valid repayment amount.', 'error'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Posting…';
+      await postLoanRepayment(loanId, amount);
+    });
+  });
+}
+
+async function postLoanRepayment(loanId, amount) {
+  const { data: loan } = await supabaseClient.from('loans').select('*').eq('id', loanId).single();
+
+  const { data: pending } = await supabaseClient
+    .from('loan_repayment_schedule')
+    .select('*')
+    .eq('loan_id', loanId)
+    .eq('status', 'Pending')
+    .order('installment_number', { ascending: true })
+    .limit(1);
+
+  let principalPortion, interestPortion, matchedInstallment = null;
+  if (pending && pending.length) {
+    matchedInstallment = pending[0];
+    principalPortion = matchedInstallment.principal_portion;
+    interestPortion = matchedInstallment.interest_portion;
+  } else {
+    principalPortion = amount;
+    interestPortion = 0;
+  }
+
+  await supabaseClient.from('loan_repayments').insert([{
+    loan_id: loanId, member_id: selectedMember.id, amount, principal_portion: principalPortion, interest_portion: interestPortion
+  }]);
+
+  if (matchedInstallment && amount >= matchedInstallment.amount) {
+    await supabaseClient.from('loan_repayment_schedule').update({ status: 'Paid' }).eq('id', matchedInstallment.id);
+  }
+
+  const newOutstanding = Math.max(0, Number(loan.outstanding_balance) - principalPortion);
+
+  const { data: nextPending } = await supabaseClient
+    .from('loan_repayment_schedule')
+    .select('*')
+    .eq('loan_id', loanId)
+    .eq('status', 'Pending')
+    .order('installment_number', { ascending: true })
+    .limit(1);
+
+  const updates = { outstanding_balance: newOutstanding };
+  if (nextPending && nextPending.length) {
+    updates.next_installment_amount = nextPending[0].amount;
+    updates.next_installment_date = nextPending[0].due_date;
+  } else {
+    updates.status = 'Cleared';
+    updates.next_installment_amount = null;
+    updates.next_installment_date = null;
+  }
+  await supabaseClient.from('loans').update(updates).eq('id', loanId);
+
+  showMsg('Repayment posted.', 'success');
+  loadLoans();
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+})();
+</script>
+</body>
+</html>
