@@ -94,9 +94,19 @@
 <script>
 let currentAdmin = null;
 
+const LETTERHEAD_HTML = `
+  <div class="print-letterhead">
+    <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+    <div class="letterhead-text">
+      <strong>SODIS-SACCO</strong>
+      <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+      <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+    </div>
+  </div>`;
+
 function printText(text) {
   document.getElementById('agreement-print-area').innerHTML =
-    `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
+    LETTERHEAD_HTML + `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
   document.body.classList.add('print-agreement-mode');
   window.print();
 }
