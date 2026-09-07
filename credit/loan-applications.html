@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loan Applications — SODIS-SACCO Credit Committee Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Credit Committee</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-credit-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Credit Committee account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Loan Applications</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Review requests, set the interest rate, and approve to generate an agreement — disbursement and the repayment schedule are created once both parties sign.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Agreements awaiting SACCO countersignature</h2>
+      </div>
+      <div id="pending-signature-wrap" style="margin-bottom:36px;">
+        <p class="text-soft">Loading…</p>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Applications</h2>
+      </div>
+      <div style="margin-bottom:20px;">
+        <select id="filter-status" style="padding:9px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);">
+          <option value="Submitted">Pending review</option>
+          <option value="Awaiting Signatures">Awaiting signatures</option>
+          <option value="Disbursed">Disbursed</option>
+          <option value="Rejected">Rejected</option>
+          <option value="all">All applications</option>
+        </select>
+      </div>
+
+      <div id="apps-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="agreement-print-area"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/credit.js"></script>
+<script>
+let currentCredit = null;
+
+const LETTERHEAD_HTML = `
+  <div class="print-letterhead">
+    <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+    <div class="letterhead-text">
+      <strong>SODIS-SACCO</strong>
+      <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+      <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+    </div>
+  </div>`;
+
+function printText(text) {
+  document.getElementById('agreement-print-area').innerHTML =
+    LETTERHEAD_HTML + `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
+  document.body.classList.add('print-agreement-mode');
+  window.print();
+}
+window.addEventListener('afterprint', () => document.body.classList.remove('print-agreement-mode'));
+
+function addMonths(dateStr, months) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const originalDay = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const daysInTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(originalDay, daysInTargetMonth));
+  return d.toISOString().slice(0, 10);
+}
+
+function buildApplicationPrintText(app, member, guarantors, collateral) {
+  const guarantorLines = (guarantors && guarantors.length)
+    ? guarantors.map(g => `- ${g.members.full_name} (${g.members.membership_number}) — ${g.status}${g.guarantor_signature_name ? `, signed as "${g.guarantor_signature_name}" on ${formatDate(g.guarantor_signed_at)}` : ''}`).join('\n')
+    : 'None named';
+
+  const collateralLines = (collateral && collateral.length)
+    ? collateral.map(c => `- ${c.collateral_type}: ${c.description} (Est. UGX ${Number(c.estimated_value || 0).toLocaleString()})`).join('\n')
+    : 'None';
+
+  return `SODIS-SACCO LOAN APPLICATION FORM
+
+Application No: ${app.application_number}
+Status: ${app.status}
+Date Submitted: ${formatDate(app.submitted_at)}
+
+APPLICANT
+Name: ${member.full_name}
+Membership No: ${member.membership_number}
+Phone: ${member.phone || ''}
+
+LOAN DETAILS
+Product: ${app.product}
+Amount Requested: UGX ${Number(app.amount).toLocaleString()}
+Repayment Period: ${app.period_months} months
+Purpose: ${app.purpose}
+
+GUARANTORS
+${guarantorLines}
+
+COLLATERAL
+${collateralLines}
+
+${app.decision_notes ? `DECISION NOTE\n${app.decision_notes}\n` : ''}
+──────────────────────────────
+Officer signature: ______________________   Date: ____________
+
+Membership Officer / Credit Officer review copy — for internal use.`;
+}
+
+function buildAgreementText(app, member, guarantors, collateral, interestRate, totalInterest, monthlyInstallment) {
+  const guarantorLines = (guarantors && guarantors.length)
+    ? guarantors.map(g => `- ${g.members.full_name} (Membership No: ${g.members.membership_number}) — ${g.status}${g.guarantor_signature_name ? `, signed as "${g.guarantor_signature_name}" on ${formatDate(g.guarantor_signed_at)}` : ''}`).join('\n')
+    : 'None';
+
+  const collateralLines = (collateral && collateral.length)
+    ? collateral.map(c => `- ${c.collateral_type}: ${c.description} (Estimated value: UGX ${Number(c.estimated_value || 0).toLocaleString()})`).join('\n')
+    : 'None';
+
+  const totalRepayable = Number(app.amount) + Number(totalInterest);
+
+  return `LOAN AGREEMENT — SODIS-SACCO
+
+Soroti District Local Government Staff Cooperative Savings and Credit Society Limited
+Registration 9020/RCS
+
+Application No: ${app.application_number}
+
+Borrower: ${member.full_name}
+Membership No: ${member.membership_number}
+
+Loan Product: ${app.product}
+Principal Amount: UGX ${Number(app.amount).toLocaleString()}
+Repayment Period: ${app.period_months} months
+Purpose: ${app.purpose}
+
+INTEREST & REPAYMENT
+Monthly Interest Rate: ${interestRate}%
+Total Interest Payable: UGX ${Number(totalInterest).toLocaleString()}
+Total Amount Repayable: UGX ${totalRepayable.toLocaleString()}
+Estimated Monthly Installment: UGX ${Number(monthlyInstallment).toLocaleString()}
+(A full month-by-month repayment schedule will be generated and made
+available in your portal once this loan is disbursed.)
+
+Guarantors:
+${guarantorLines}
+
+Collateral Pledged:
+${collateralLines}
+
+Disbursement Conditions:
+Disbursement will be made to the borrower's SODIS-SACCO savings account only
+after this agreement is signed by both the borrower and an authorized SACCO
+officer, and after all guarantor acceptances and collateral verifications
+(where applicable) are complete.
+
+Repayment Conditions:
+The borrower agrees to repay the principal amount plus the interest set out
+above, according to the repayment schedule issued upon disbursement.
+Repayment may be made by salary deduction, direct deposit, standing order,
+or account debit as provided in the Lending & Credit Policy.
+
+By signing below, the borrower and the authorized SACCO officer confirm
+their agreement to these terms.`;
+}
+
+async function loadPendingSignatures() {
+  const wrap = document.getElementById('pending-signature-wrap');
+  const { data: agreements, error } = await supabaseClient
+    .from('loan_agreements')
+    .select('*, members(full_name, membership_number)')
+    .not('member_signed_at', 'is', null)
+    .is('staff_signed_at', null)
+    .order('member_signed_at', { ascending: true });
+
+  if (error || !agreements || agreements.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No agreements waiting on a SACCO signature.</div>';
+    return;
+  }
+
+  wrap.innerHTML = agreements.map(a => {
+    const member = a.members || {};
+    return `
+      <div class="app-card">
+        <h3>${escapeHtml(member.full_name || 'Member')} (${escapeHtml(member.membership_number || '—')})</h3>
+        <p class="text-soft" style="margin:6px 0 14px;">Signed by the member as "${escapeHtml(a.member_signature_name)}" on ${formatDate(a.member_signed_at)}.</p>
+        <div class="agreement-doc" style="margin-bottom:14px;">${escapeHtml(a.terms_summary)}</div>
+        <div class="app-actions">
+          <button class="btn btn-green btn-sm countersign-btn" data-id="${a.id}">Countersign &amp; disburse</button>
+          <button class="btn btn-outline-dark btn-sm print-text-btn" data-text="${encodeURIComponent(a.terms_summary)}">Print</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('.print-text-btn').forEach(btn => {
+    btn.addEventListener('click', () => printText(decodeURIComponent(btn.getAttribute('data-text'))));
+  });
+
+  wrap.querySelectorAll('.countersign-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Processing…';
+      await countersignAgreement(btn.getAttribute('data-id'));
+    });
+  });
+}
+
+async function countersignAgreement(agreementId) {
+  const { data: agreement, error: fetchError } = await supabaseClient
+    .from('loan_agreements')
+    .select('*')
+    .eq('id', agreementId)
+    .single();
+
+  if (fetchError || !agreement) {
+    showMsg('Could not find this agreement.', 'error');
+    loadPendingSignatures();
+    return;
+  }
+
+  const { data: app } = await supabaseClient
+    .from('loan_applications')
+    .select('*')
+    .eq('id', agreement.loan_application_id)
+    .single();
+
+  const disbursedAt = new Date().toISOString().slice(0, 10);
+
+  const { data: newLoan, error: loanError } = await supabaseClient
+    .from('loans')
+    .insert([{
+      member_id: agreement.member_id,
+      product: app.product,
+      principal: app.amount,
+      outstanding_balance: app.amount,
+      status: 'Active',
+      disbursed_at: disbursedAt,
+      next_installment_amount: agreement.monthly_installment,
+      next_installment_date: addMonths(disbursedAt, 1)
+    }])
+    .select()
+    .single();
+
+  if (loanError) {
+    showMsg('Could not create the loan record: ' + loanError.message, 'error');
+    loadPendingSignatures();
+    return;
+  }
+
+  // Generate the repayment schedule — flat-rate, evenly split principal
+  // and interest across the agreed period.
+  const months = app.period_months;
+  const principalPerInstallment = Number(app.amount) / months;
+  const interestPerInstallment = Number(agreement.total_interest) / months;
+  const amountPerInstallment = principalPerInstallment + interestPerInstallment;
+
+  const scheduleRows = [];
+  for (let i = 1; i <= months; i++) {
+    scheduleRows.push({
+      loan_id: newLoan.id,
+      installment_number: i,
+      due_date: addMonths(disbursedAt, i),
+      amount: Math.round(amountPerInstallment),
+      principal_portion: Math.round(principalPerInstallment),
+      interest_portion: Math.round(interestPerInstallment),
+      status: 'Pending'
+    });
+  }
+  await supabaseClient.from('loan_repayment_schedule').insert(scheduleRows);
+
+  await supabaseClient.from('loan_agreements').update({
+    staff_signed_at: new Date().toISOString(),
+    staff_signature_name: currentCredit.full_name || currentCredit.email,
+    staff_email: currentCredit.email,
+    loan_id: newLoan.id
+  }).eq('id', agreementId);
+
+  await supabaseClient.from('loan_applications').update({
+    status: 'Disbursed',
+    loan_id: newLoan.id
+  }).eq('id', agreement.loan_application_id);
+
+  showMsg('Countersigned. The loan is active, and the repayment schedule is now visible in the member\'s portal.', 'success');
+  loadPendingSignatures();
+  loadApplications();
+}
+
+async function loadApplications() {
+  const wrap = document.getElementById('apps-wrap');
+  wrap.innerHTML = '<p class="text-soft">Loading…</p>';
+
+  const filter = document.getElementById('filter-status').value;
+  let query = supabaseClient
+    .from('loan_applications')
+    .select('*, members(full_name, membership_number, phone)')
+    .order('submitted_at', { ascending: false });
+  if (filter !== 'all') query = query.eq('status', filter);
+
+  const { data: apps, error } = await query;
+
+  if (error) {
+    wrap.innerHTML = '<div class="empty-state">Could not load loan applications.</div>';
+    return;
+  }
+
+  if (!apps || apps.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No applications in this view.</div>';
+    return;
+  }
+
+  const cards = await Promise.all(apps.map(async (app) => {
+    const member = app.members || {};
+    const statusClass = app.status === 'Disbursed' ? 'status-approved' : app.status === 'Rejected' ? 'status-rejected' : '';
+    const isPending = app.status === 'Submitted';
+
+    const { data: guarantors } = await supabaseClient
+      .from('loan_guarantors')
+      .select('*, members(full_name, membership_number)')
+      .eq('loan_application_id', app.id);
+
+    const { data: collateral } = await supabaseClient
+      .from('loan_collateral')
+      .select('*')
+      .eq('loan_application_id', app.id);
+
+    let guarantorHtml = '';
+    let collateralHtml = '';
+    if (guarantors && guarantors.length) {
+      guarantorHtml = '<p style="margin:10px 0 0;font-size:0.88rem;"><span class="text-soft">Guarantors:</span> ' +
+        guarantors.map(g => `${escapeHtml(g.members.full_name)} (${g.status}${g.guarantor_signature_name ? ', signed' : ''})`).join(', ') + '</p>';
+    }
+    if (collateral && collateral.length) {
+      collateralHtml = '<p style="margin:6px 0 0;font-size:0.88rem;"><span class="text-soft">Collateral:</span> ' +
+        collateral.map(c => `${escapeHtml(c.collateral_type)} — ${escapeHtml(c.description)}`).join('; ') + '</p>';
+    }
+
+    return `
+      <div class="app-card ${statusClass}" data-id="${app.id}">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(member.full_name || 'Unknown member')} — ${escapeHtml(app.product)} <span class="text-soft" style="font-size:0.8rem;font-weight:400;">${escapeHtml(app.application_number || '')}</span></h3>
+          ${appBadge(app.status)}
+        </div>
+        <div class="app-meta">
+          <div><span class="k">Membership No:</span> ${escapeHtml(member.membership_number || '—')}</div>
+          <div><span class="k">Phone:</span> ${escapeHtml(member.phone || '—')}</div>
+          <div><span class="k">Amount requested:</span> ${formatUGX(app.amount)}</div>
+          <div><span class="k">Period:</span> ${app.period_months} months</div>
+          <div><span class="k">Submitted:</span> ${formatDate(app.submitted_at)}</div>
+          ${app.decided_at ? `<div><span class="k">Decided:</span> ${formatDate(app.decided_at)}</div>` : ''}
+        </div>
+        <p style="margin:10px 0 0;font-size:0.9rem;"><span class="text-soft">Purpose:</span> ${escapeHtml(app.purpose)}</p>
+        ${guarantorHtml}
+        ${collateralHtml}
+        ${isPending && currentCredit.member_id && app.member_id === currentCredit.member_id ? `
+          <div class="form-msg error show" style="margin-top:14px;">⚠ Conflict of interest — this is your own application. You cannot approve or reject it; another committee member must decide.</div>
+        ` : ''}
+        ${isPending && !(currentCredit.member_id && app.member_id === currentCredit.member_id) ? `
+          <div class="app-actions" style="flex-direction:column;align-items:stretch;">
+            <div class="field-row two" style="margin-bottom:10px;">
+              <div class="field" style="margin-bottom:0;">
+                <label style="font-size:0.82rem;">Monthly interest rate (%) *</label>
+                <input type="number" step="0.1" min="0" class="interest-rate-input" placeholder="e.g. 12" style="padding:9px 11px;border:1px solid var(--line);border-radius:3px;width:100%;">
+              </div>
+            </div>
+            <textarea class="decision-notes" placeholder="Optional note to the member" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" rows="2"></textarea>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-green btn-sm approve-btn">Approve &amp; Generate Agreement</button>
+              <button class="btn btn-danger btn-sm reject-btn">Reject</button>
+              <button class="btn btn-outline-dark btn-sm print-app-btn" data-text="${encodeURIComponent(buildApplicationPrintText(app, member, guarantors, collateral))}">Print Application</button>
+            </div>
+          </div>
+        ` : `
+          <div class="app-actions">
+            <button class="btn btn-outline-dark btn-sm print-app-btn" data-text="${encodeURIComponent(buildApplicationPrintText(app, member, guarantors, collateral))}">Print Application</button>
+          </div>
+          ${app.decision_notes ? `<p style="margin:10px 0 0;font-size:0.9rem;"><strong>Note sent:</strong> ${escapeHtml(app.decision_notes)}</p>` : ''}
+        `}
+      </div>
+    `;
+  }));
+
+  wrap.innerHTML = cards.join('');
+
+  wrap.querySelectorAll('.print-app-btn').forEach(btn => {
+    btn.addEventListener('click', () => printText(decodeURIComponent(btn.getAttribute('data-text'))));
+  });
+
+  wrap.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const id = card.getAttribute('data-id');
+      const notes = card.querySelector('.decision-notes').value.trim();
+      const rateInput = card.querySelector('.interest-rate-input');
+      const rate = Number(rateInput.value);
+
+      if (!rateInput.value || isNaN(rate) || rate < 0) {
+        showMsg('Please enter an interest rate before approving.', 'error');
+        rateInput.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Generating…';
+      await approveAndGenerateAgreement(id, notes, rate);
+    });
+  });
+
+  wrap.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const card = btn.closest('.app-card');
+      const id = card.getAttribute('data-id');
+      const notes = card.querySelector('.decision-notes').value.trim();
+      btn.disabled = true;
+      btn.textContent = 'Rejecting…';
+
+      const { error } = await supabaseClient
+        .from('loan_applications')
+        .update({ status: 'Rejected', decision_notes: notes || null, decided_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) showMsg('Could not reject this application.', 'error');
+      else showMsg('Application rejected.', 'success');
+      loadApplications();
+    });
+  });
+}
+
+function appBadge(status) {
+  if (status === 'Disbursed') return '<span class="badge badge-green">Disbursed</span>';
+  if (status === 'Rejected') return '<span class="badge" style="background:var(--brick);color:var(--white);">Rejected</span>';
+  if (status === 'Awaiting Signatures') return '<span class="badge" style="background:var(--indigo);color:var(--white);">Awaiting signatures</span>';
+  return '<span class="badge">Submitted</span>';
+}
+
+async function approveAndGenerateAgreement(applicationId, notes, interestRate) {
+  const { data: app, error: fetchError } = await supabaseClient
+    .from('loan_applications')
+    .select('*, members(full_name, membership_number)')
+    .eq('id', applicationId)
+    .single();
+
+  if (fetchError || !app) {
+    showMsg('Could not find this application.', 'error');
+    loadApplications();
+    return;
+  }
+
+  const { data: guarantors } = await supabaseClient
+    .from('loan_guarantors')
+    .select('*, members(full_name, membership_number)')
+    .eq('loan_application_id', applicationId);
+
+  const { data: collateral } = await supabaseClient
+    .from('loan_collateral')
+    .select('*')
+    .eq('loan_application_id', applicationId);
+
+  const totalInterest = Number(app.amount) * (interestRate / 100) * app.period_months;
+  const monthlyInstallment = (Number(app.amount) + totalInterest) / app.period_months;
+
+  const termsText = buildAgreementText(app, app.members, guarantors, collateral, interestRate, totalInterest, monthlyInstallment);
+
+  const { error: agreementError } = await supabaseClient.from('loan_agreements').insert([{
+    loan_application_id: applicationId,
+    member_id: app.member_id,
+    terms_summary: termsText,
+    interest_rate: interestRate,
+    total_interest: totalInterest,
+    monthly_installment: monthlyInstallment
+  }]);
+
+  if (agreementError) {
+    showMsg('Could not generate the agreement: ' + agreementError.message, 'error');
+    loadApplications();
+    return;
+  }
+
+  const { error: updateError } = await supabaseClient
+    .from('loan_applications')
+    .update({ status: 'Awaiting Signatures', decision_notes: notes || null, decided_at: new Date().toISOString() })
+    .eq('id', applicationId);
+
+  if (updateError) {
+    showMsg('Agreement generated, but the application status could not be updated.', 'error');
+  } else {
+    showMsg('Approved. The agreement has been generated and is now waiting for the member to sign in their portal.', 'success');
+  }
+
+  loadApplications();
+}
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+(async () => {
+  currentCredit = await requireCreditAuth();
+  if (!currentCredit) return;
+  await loadPendingSignatures();
+  await loadApplications();
+})();
+
+document.getElementById('filter-status').addEventListener('change', loadApplications);
+</script>
+</body>
+</html>
