@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meetings &amp; Resolutions — SODIS-SACCO Board Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  @media print {
+    .portal-sidebar, .portal-topbar, .no-print { display: none !important; }
+    .portal-main { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Board Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="meetings.html">Meetings &amp; Resolutions</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar no-print">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-board-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Board account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div class="print-letterhead">
+        <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+        <div class="letterhead-text">
+          <strong>SODIS-SACCO</strong>
+          <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+          <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+        </div>
+      </div>
+      <h1 style="font-size:1.4rem;" class="no-print">Meetings &amp; Resolutions</h1>
+
+      <div id="msg-banner" class="form-msg no-print"></div>
+
+      <div id="list-view">
+        <div class="form-panel no-print" style="max-width:600px;margin-bottom:30px;">
+          <h3 class="mt-0">Schedule a meeting</h3>
+          <div class="field-row two">
+            <div class="field">
+              <label for="new-date">Date</label>
+              <input type="date" id="new-date">
+            </div>
+            <div class="field">
+              <label for="new-venue">Venue</label>
+              <input type="text" id="new-venue" placeholder="e.g. SODIS-SACCO Boardroom">
+            </div>
+          </div>
+          <div class="field">
+            <label for="new-agenda">Agenda</label>
+            <textarea id="new-agenda" rows="3" placeholder="One item per line"></textarea>
+          </div>
+          <button class="btn btn-green btn-block" id="create-meeting-btn">Schedule meeting</button>
+        </div>
+
+        <div class="section-head no-print" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">All meetings</h2>
+        </div>
+        <div id="meetings-wrap" class="no-print"><p class="text-soft">Loading…</p></div>
+      </div>
+
+      <div id="detail-view" style="display:none;">
+        <button class="btn btn-outline-dark btn-sm no-print" id="back-btn" style="margin-bottom:18px;">← All meetings</button>
+
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px;">
+          <h2 id="dv-title" style="font-size:1.2rem;">—</h2>
+          <button class="btn btn-outline-dark no-print" onclick="window.print()">Print board pack</button>
+        </div>
+        <p id="dv-meta" class="text-soft" style="margin-bottom:20px;">—</p>
+
+        <h3 style="font-size:1rem;color:var(--indigo);">Agenda</h3>
+        <p id="dv-agenda" style="white-space:pre-wrap;margin-bottom:20px;">—</p>
+
+        <h3 style="font-size:1rem;color:var(--indigo);">Minutes</h3>
+        <textarea id="dv-minutes-input" rows="6" class="no-print" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:3px;font-family:var(--font-body);margin-bottom:10px;" placeholder="Record the minutes of this meeting…"></textarea>
+        <button class="btn btn-outline-dark no-print" id="save-minutes-btn" style="margin-bottom:10px;">Save minutes</button>
+        <div id="dv-minutes-print" style="display:none;white-space:pre-wrap;margin-bottom:20px;"></div>
+
+        <div class="field no-print" style="max-width:260px;">
+          <label for="dv-status">Meeting status</label>
+          <select id="dv-status">
+            <option>Scheduled</option>
+            <option>Held</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+
+        <hr class="ledger-rule">
+
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2 style="font-size:1.1rem;">Resolutions from this meeting</h2>
+        </div>
+
+        <div class="form-panel no-print" style="max-width:600px;margin-bottom:24px;">
+          <div class="field">
+            <label for="res-text">Resolution</label>
+            <textarea id="res-text" rows="2" placeholder="e.g. Approve the FY2027 budget as tabled"></textarea>
+          </div>
+          <div class="field-row two">
+            <div class="field">
+              <label for="res-responsible">Responsible person</label>
+              <input type="text" id="res-responsible" placeholder="e.g. General Manager">
+            </div>
+            <div class="field">
+              <label for="res-deadline">Deadline</label>
+              <input type="date" id="res-deadline">
+            </div>
+          </div>
+          <button class="btn btn-green btn-block" id="add-resolution-btn">Add resolution</button>
+        </div>
+
+        <div id="resolutions-wrap"><p class="text-soft">Loading…</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/board.js"></script>
+<script>
+let currentMeeting = null;
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadMeetings() {
+  const { data: meetings } = await supabaseClient.from('board_meetings').select('*').order('meeting_date', { ascending: false });
+  const wrap = document.getElementById('meetings-wrap');
+
+  if (!meetings || meetings.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No meetings scheduled yet.</div>';
+    return;
+  }
+
+  const statusBadge = (s) => s === 'Held' ? '<span class="badge badge-green">Held</span>' : s === 'Cancelled' ? '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Cancelled</span>' : '<span class="badge">Scheduled</span>';
+
+  wrap.innerHTML = meetings.map(m => `
+    <div class="app-card" style="cursor:pointer;" data-id="${m.id}">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${formatDate(m.meeting_date)}${m.venue ? ' — ' + escapeHtml(m.venue) : ''}</h3>
+        ${statusBadge(m.status)}
+      </div>
+      <p class="text-soft" style="margin:6px 0 0;font-size:0.88rem;">${m.agenda ? escapeHtml(m.agenda.split('\\n')[0]) + (m.agenda.includes('\\n') ? '…' : '') : 'No agenda recorded'}</p>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.app-card').forEach(card => {
+    card.addEventListener('click', async () => {
+      const { data: meeting } = await supabaseClient.from('board_meetings').select('*').eq('id', card.getAttribute('data-id')).single();
+      openMeeting(meeting);
+    });
+  });
+}
+
+document.getElementById('create-meeting-btn').addEventListener('click', async () => {
+  const date = document.getElementById('new-date').value;
+  const venue = document.getElementById('new-venue').value.trim();
+  const agenda = document.getElementById('new-agenda').value.trim();
+
+  if (!date) { showMsg('Select a meeting date.', 'error'); return; }
+
+  const { data: meeting, error } = await supabaseClient.from('board_meetings')
+    .insert([{ meeting_date: date, venue, agenda }]).select().single();
+
+  if (error || !meeting) { showMsg('Could not schedule the meeting.', 'error'); return; }
+
+  showMsg('Meeting scheduled.', 'success');
+  document.getElementById('new-date').value = '';
+  document.getElementById('new-venue').value = '';
+  document.getElementById('new-agenda').value = '';
+  loadMeetings();
+});
+
+function openMeeting(meeting) {
+  currentMeeting = meeting;
+  document.getElementById('list-view').style.display = 'none';
+  document.getElementById('detail-view').style.display = 'block';
+  document.getElementById('dv-title').textContent = `Board Meeting — ${formatDate(meeting.meeting_date)}`;
+  document.getElementById('dv-meta').textContent = meeting.venue || 'Venue not recorded';
+  document.getElementById('dv-agenda').textContent = meeting.agenda || 'No agenda recorded.';
+  document.getElementById('dv-minutes-input').value = meeting.minutes || '';
+  document.getElementById('dv-minutes-print').textContent = meeting.minutes || 'No minutes recorded yet.';
+  document.getElementById('dv-status').value = meeting.status || 'Scheduled';
+  loadResolutions();
+}
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  document.getElementById('detail-view').style.display = 'none';
+  document.getElementById('list-view').style.display = 'block';
+  loadMeetings();
+});
+
+document.getElementById('save-minutes-btn').addEventListener('click', async () => {
+  const minutes = document.getElementById('dv-minutes-input').value.trim();
+  await supabaseClient.from('board_meetings').update({ minutes }).eq('id', currentMeeting.id);
+  document.getElementById('dv-minutes-print').textContent = minutes || 'No minutes recorded yet.';
+  showMsg('Minutes saved.', 'success');
+});
+
+document.getElementById('dv-status').addEventListener('change', async (e) => {
+  await supabaseClient.from('board_meetings').update({ status: e.target.value }).eq('id', currentMeeting.id);
+  showMsg('Meeting status updated.', 'success');
+});
+
+async function loadResolutions() {
+  const { data: resolutions } = await supabaseClient
+    .from('board_resolutions').select('*').eq('meeting_id', currentMeeting.id).order('created_at', { ascending: true });
+
+  const wrap = document.getElementById('resolutions-wrap');
+  if (!resolutions || resolutions.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No resolutions recorded for this meeting yet.</div>';
+    return;
+  }
+
+  const statusBadge = (s) => s === 'Completed' ? '<span class="badge badge-green">Completed</span>'
+    : s === 'Deferred' ? '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Deferred</span>'
+    : s === 'In Progress' ? '<span class="badge" style="background:var(--indigo);color:var(--white);">In Progress</span>'
+    : '<span class="badge">Pending</span>';
+
+  wrap.innerHTML = resolutions.map(r => `
+    <div class="app-card">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+        <h3>${escapeHtml(r.resolution_number)}</h3>
+        ${statusBadge(r.status)}
+      </div>
+      <p style="margin:8px 0;">${escapeHtml(r.resolution_text)}</p>
+      <div class="app-meta">
+        <div><span class="k">Responsible:</span> ${escapeHtml(r.responsible_person || '—')}</div>
+        <div><span class="k">Deadline:</span> ${formatDate(r.deadline)}</div>
+      </div>
+      <div class="app-actions no-print">
+        <select class="res-status-select" data-id="${r.id}">
+          <option ${r.status === 'Pending' ? 'selected' : ''}>Pending</option>
+          <option ${r.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+          <option ${r.status === 'Completed' ? 'selected' : ''}>Completed</option>
+          <option ${r.status === 'Deferred' ? 'selected' : ''}>Deferred</option>
+        </select>
+      </div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.res-status-select').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      await supabaseClient.from('board_resolutions').update({ status: sel.value }).eq('id', sel.getAttribute('data-id'));
+      loadResolutions();
+    });
+  });
+}
+
+document.getElementById('add-resolution-btn').addEventListener('click', async () => {
+  const text = document.getElementById('res-text').value.trim();
+  const responsible = document.getElementById('res-responsible').value.trim();
+  const deadline = document.getElementById('res-deadline').value || null;
+
+  if (!text) { showMsg('Enter the resolution text.', 'error'); return; }
+
+  const { error } = await supabaseClient.from('board_resolutions').insert([{
+    meeting_id: currentMeeting.id, resolution_text: text, responsible_person: responsible, deadline
+  }]);
+
+  if (error) { showMsg('Could not add the resolution.', 'error'); return; }
+
+  showMsg('Resolution added.', 'success');
+  document.getElementById('res-text').value = '';
+  document.getElementById('res-responsible').value = '';
+  document.getElementById('res-deadline').value = '';
+  loadResolutions();
+});
+
+(async () => {
+  const user = await requireBoardAuth();
+  if (!user) return;
+  await loadMeetings();
+})();
+</script>
+</body>
+</html>
