@@ -24,6 +24,7 @@
       <ul>
         <li><a href="dashboard.html">Dashboard</a></li>
         <li><a href="member-accounts.html">Member Accounts</a></li>
+        <li><a href="loan-monitoring.html">Loan Monitoring</a></li>
         <li><a href="applications.html">Membership Applications</a></li>
         <li><a href="loan-applications.html">Loan Applications</a></li>
         <li><a href="news.html">News</a></li>
@@ -73,6 +74,12 @@
             <div class="figure" id="unhandled-msgs">—</div>
           </div>
         </a>
+        <a href="loan-monitoring.html" style="text-decoration:none;">
+          <div class="summary-card" style="border-top-color:var(--brick);">
+            <div class="label">Overdue loans</div>
+            <div class="figure" id="overdue-loans">—</div>
+          </div>
+        </a>
         <div class="summary-card green">
           <div class="label">Active members</div>
           <div class="figure" id="active-members">—</div>
@@ -84,7 +91,7 @@
       </div>
       <div class="grid grid-3">
         <a href="member-accounts.html" class="btn btn-outline-dark btn-block">Manage member accounts</a>
-        <a href="applications.html" class="btn btn-outline-dark btn-block">Review applications</a>
+        <a href="loan-monitoring.html" class="btn btn-outline-dark btn-block">Loan monitoring</a>
         <a href="loan-applications.html" class="btn btn-outline-dark btn-block">Review loan requests</a>
       </div>
     </div>
@@ -122,6 +129,12 @@
     .select('*', { count: 'exact', head: true })
     .eq('status', 'Active');
   document.getElementById('active-members').textContent = memberCount ?? 0;
+
+  const { count: overdueCount } = await supabaseClient
+    .from('loans')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'Overdue');
+  document.getElementById('overdue-loans').textContent = overdueCount ?? 0;
 })();
 </script>
 </body>
