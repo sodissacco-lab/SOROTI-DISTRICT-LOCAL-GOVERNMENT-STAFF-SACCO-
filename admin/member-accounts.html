@@ -58,6 +58,9 @@
       <p class="text-soft" style="margin-bottom:24px;">Find a member to post savings deposits/withdrawals, share transactions, and loan repayments.</p>
 
       <div id="msg-banner" class="form-msg"></div>
+      <div id="receipt-action" style="display:none;margin-bottom:20px;">
+        <button class="btn btn-outline-dark btn-sm" id="print-receipt-btn">Print receipt</button>
+      </div>
 
       <div class="form-panel" style="max-width:520px;margin-bottom:30px;">
         <div class="field" style="margin-bottom:12px;">
@@ -147,6 +150,8 @@
   </div>
 </div>
 
+<div id="agreement-print-area"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/config.js"></script>
 <script src="js/admin.js"></script>
@@ -155,6 +160,56 @@ let selectedMember = null;
 let currentSavingsAccount = null;
 let currentShares = null;
 let searchDebounce = null;
+let currentAdminEmail = null;
+
+const LETTERHEAD_HTML = `
+  <div class="print-letterhead">
+    <img src="../assets/logo.png" alt="SODIS-SACCO logo">
+    <div class="letterhead-text">
+      <strong>SODIS-SACCO</strong>
+      <span>Soroti District Local Government Staff Cooperative Savings and Credit Society Limited</span>
+      <span>Soroti District Headquarters, Lira Road, P.O. Box 67, Soroti, Uganda — Registration 9020/RCS</span>
+    </div>
+  </div>`;
+
+function printText(text) {
+  document.getElementById('agreement-print-area').innerHTML =
+    LETTERHEAD_HTML + `<div class="agreement-doc" style="max-width:100%;border:none;">${escapeHtml(text)}</div>`;
+  document.body.classList.add('print-agreement-mode');
+  window.print();
+}
+window.addEventListener('afterprint', () => document.body.classList.remove('print-agreement-mode'));
+
+function buildReceiptText({ receiptNumber, date, docType, particulars, amount, afterLabel, afterText }) {
+  return `SODIS-SACCO
+${docType}
+
+Receipt No: ${receiptNumber}
+Date: ${formatDate(date)}
+
+Member: ${selectedMember.full_name}
+Membership No: ${selectedMember.membership_number}
+
+Particulars: ${particulars}
+
+Amount: ${formatUGX(amount)}
+${afterLabel}: ${afterText}
+
+Posted by: ${currentAdminEmail}
+
+
+_______________________          _______________________
+Member signature                  Cashier / Teller signature`;
+}
+
+let lastReceiptText = null;
+function offerReceipt(text) {
+  lastReceiptText = text;
+  document.getElementById('receipt-action').style.display = 'block';
+}
+document.getElementById('print-receipt-btn').addEventListener('click', () => {
+  if (lastReceiptText) printText(lastReceiptText);
+});
 
 function showMsg(text, type) {
   const banner = document.getElementById('msg-banner');
@@ -200,6 +255,8 @@ document.getElementById('member-search').addEventListener('input', () => {
 
 async function selectMember(member) {
   selectedMember = member;
+  lastReceiptText = null;
+  document.getElementById('receipt-action').style.display = 'none';
   document.getElementById('member-workspace').style.display = 'block';
   document.getElementById('member-name').textContent = member.full_name;
   document.getElementById('member-meta').textContent = `Membership No: ${member.membership_number} · ${member.phone || 'no phone on file'}`;
@@ -265,12 +322,23 @@ document.getElementById('sv-submit').addEventListener('click', async () => {
     return;
   }
 
-  await supabaseClient.from('savings_transactions').insert([{
+  const { data: txnRow } = await supabaseClient.from('savings_transactions').insert([{
     member_id: selectedMember.id, description: description || type, credit, debit, balance_after: newBalance
-  }]);
+  }]).select().single();
   await supabaseClient.from('savings_accounts').update({ balance: newBalance, updated_at: new Date().toISOString() }).eq('member_id', selectedMember.id);
 
   showMsg('Savings transaction posted.', 'success');
+  if (txnRow) {
+    offerReceipt(buildReceiptText({
+      receiptNumber: txnRow.receipt_number,
+      date: txnRow.txn_date,
+      docType: type === 'Deposit' ? 'RECEIPT' : 'PAYMENT VOUCHER',
+      particulars: description || type,
+      amount: amount,
+      afterLabel: 'Balance after transaction',
+      afterText: formatUGX(newBalance)
+    }));
+  }
   document.getElementById('sv-amount').value = '';
   document.getElementById('sv-description').value = '';
   loadSavings();
@@ -325,12 +393,23 @@ document.getElementById('sh-submit').addEventListener('click', async () => {
   const newCount = currentShares.number_of_shares + change;
   if (newCount < 0) { showMsg('This would take shares below zero.', 'error'); return; }
 
-  await supabaseClient.from('share_transactions').insert([{
+  const { data: txnRow } = await supabaseClient.from('share_transactions').insert([{
     member_id: selectedMember.id, description: description || 'Share adjustment', shares_change: change, amount
-  }]);
+  }]).select().single();
   await supabaseClient.from('shares').update({ number_of_shares: newCount, updated_at: new Date().toISOString() }).eq('member_id', selectedMember.id);
 
   showMsg('Share transaction posted.', 'success');
+  if (txnRow && amount > 0) {
+    offerReceipt(buildReceiptText({
+      receiptNumber: txnRow.receipt_number,
+      date: txnRow.txn_date,
+      docType: change >= 0 ? 'RECEIPT' : 'PAYMENT VOUCHER',
+      particulars: description || 'Share adjustment',
+      amount: amount,
+      afterLabel: 'Shares after transaction',
+      afterText: `${newCount} shares (${formatUGX(newCount * currentShares.share_value)})`
+    }));
+  }
   document.getElementById('sh-change').value = '';
   document.getElementById('sh-amount').value = '';
   document.getElementById('sh-description').value = '';
@@ -461,9 +540,9 @@ async function postLoanRepayment(loanId, amount) {
     interestPortion = 0;
   }
 
-  await supabaseClient.from('loan_repayments').insert([{
+  const { data: repaymentRow } = await supabaseClient.from('loan_repayments').insert([{
     loan_id: loanId, member_id: selectedMember.id, amount, principal_portion: principalPortion, interest_portion: interestPortion
-  }]);
+  }]).select().single();
 
   if (matchedInstallment && amount >= matchedInstallment.amount) {
     await supabaseClient.from('loan_repayment_schedule').update({ status: 'Paid' }).eq('id', matchedInstallment.id);
@@ -491,12 +570,24 @@ async function postLoanRepayment(loanId, amount) {
   await supabaseClient.from('loans').update(updates).eq('id', loanId);
 
   showMsg('Repayment posted.', 'success');
+  if (repaymentRow) {
+    offerReceipt(buildReceiptText({
+      receiptNumber: repaymentRow.receipt_number,
+      date: repaymentRow.txn_date,
+      docType: 'RECEIPT',
+      particulars: `Loan repayment — ${loan.product || 'Loan'}`,
+      amount: amount,
+      afterLabel: 'Outstanding loan balance',
+      afterText: formatUGX(newOutstanding)
+    }));
+  }
   loadLoans();
 }
 
 (async () => {
   const admin = await requireAdminAuth();
   if (!admin) return;
+  currentAdminEmail = admin.email;
 
   const params = new URLSearchParams(window.location.search);
   const memberId = params.get('member_id');
