@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGM — SODIS-SACCO Member Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Member Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="savings.html">Savings</a></li>
+        <li><a href="shares.html">Shares</a></li>
+        <li><a href="loans.html">Loans</a></li>
+        <li><a href="statements.html">Statements</a></li>
+        <li><a href="agm.html">AGM</a></li>
+        <li><a href="notifications.html">Notifications</a></li>
+        <li><a href="requests.html">Requests</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-member-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Membership No: <span data-member-number>—</span></div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">Annual General Meeting</h1>
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div id="agm-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/portal.js"></script>
+<script>
+let currentMember = null;
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadAgms() {
+  const { data: agms } = await supabaseClient.from('agms').select('*').order('meeting_date', { ascending: false });
+  const wrap = document.getElementById('agm-wrap');
+
+  if (!agms || agms.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No AGM has been scheduled yet.</div>';
+    return;
+  }
+
+  const sections = await Promise.all(agms.map(async (agm, idx) => {
+    const isLatest = idx === 0;
+    const statusBadge = agm.status === 'Held' ? '<span class="badge badge-green">Held</span>'
+      : agm.status === 'Archived' ? '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Archived</span>'
+      : '<span class="badge" style="background:var(--gold);">Upcoming</span>';
+
+    const { data: myAttendance } = await supabaseClient.from('agm_attendance').select('*')
+      .eq('agm_id', agm.id).eq('member_id', currentMember.id).maybeSingle();
+
+    let attendanceHtml = '';
+    if (agm.attendance_open && !myAttendance) {
+      attendanceHtml = `<button class="btn btn-green btn-sm checkin-btn" data-id="${agm.id}" style="margin-top:12px;">I am present at this AGM</button>`;
+    } else if (myAttendance) {
+      attendanceHtml = `<p class="text-soft" style="margin-top:10px;font-size:0.88rem;">✓ You checked in on ${formatDate(myAttendance.checked_in_at)}.</p>`;
+    }
+
+    const { data: resolutions } = await supabaseClient.from('agm_resolutions').select('*').eq('agm_id', agm.id).order('created_at', { ascending: true });
+
+    let resolutionsHtml = '';
+    if (resolutions && resolutions.length) {
+      const items = await Promise.all(resolutions.map(async (r) => {
+        let voteSection = '';
+        if (r.requires_vote) {
+          const { data: myVote } = await supabaseClient.from('agm_votes').select('*')
+            .eq('agm_resolution_id', r.id).eq('member_id', currentMember.id).maybeSingle();
+
+          if (myVote) {
+            voteSection = `<p class="text-soft" style="margin-top:8px;font-size:0.88rem;">You voted: <strong>${escapeHtml(myVote.vote)}</strong> on ${formatDate(myVote.voted_at)}.</p>`;
+          } else if (r.status === 'Open') {
+            voteSection = `
+              <div class="app-actions" style="margin-top:10px;">
+                <button class="btn btn-green btn-sm vote-btn" data-id="${r.id}" data-vote="Yes">Yes</button>
+                <button class="btn btn-danger btn-sm vote-btn" data-id="${r.id}" data-vote="No">No</button>
+                <button class="btn btn-outline-dark btn-sm vote-btn" data-id="${r.id}" data-vote="Abstain">Abstain</button>
+              </div>`;
+          } else {
+            voteSection = '<p class="text-soft" style="margin-top:8px;font-size:0.88rem;">Voting is closed for this item.</p>';
+          }
+        }
+        return `
+          <div class="app-card">
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+              <h3 style="font-size:1rem;">${escapeHtml(r.resolution_number)}</h3>
+              ${r.requires_vote ? '' : '<span class="badge" style="background:var(--ink-soft);color:var(--white);">Information only</span>'}
+            </div>
+            <p style="margin:8px 0 0;">${escapeHtml(r.proposal_text)}</p>
+            ${voteSection}
+          </div>`;
+      }));
+      resolutionsHtml = `<h4 style="color:var(--indigo);margin:18px 0 10px;font-size:0.95rem;">Agenda items &amp; voting</h4>` + items.join('');
+    }
+
+    return `
+      <div class="app-card ${agm.status === 'Held' ? 'status-approved' : ''}" style="margin-bottom:${isLatest ? '30px' : '16px'};">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h2 style="font-size:1.15rem;">${escapeHtml(agm.title)}</h2>
+          ${statusBadge}
+        </div>
+        <p class="text-soft" style="margin:6px 0 14px;">${formatDate(agm.meeting_date)}${agm.venue ? ' — ' + escapeHtml(agm.venue) : ''}</p>
+        ${agm.notice ? `<p style="white-space:pre-wrap;margin-bottom:12px;">${escapeHtml(agm.notice)}</p>` : ''}
+        ${agm.agenda ? `<h4 style="color:var(--indigo);margin:14px 0 6px;font-size:0.95rem;">Agenda</h4><p style="white-space:pre-wrap;">${escapeHtml(agm.agenda)}</p>` : ''}
+        ${attendanceHtml}
+        ${resolutionsHtml}
+      </div>
+    `;
+  }));
+
+  wrap.innerHTML = sections.join('');
+
+  wrap.querySelectorAll('.checkin-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const { error } = await supabaseClient.from('agm_attendance').insert([{
+        agm_id: btn.getAttribute('data-id'), member_id: currentMember.id, method: 'self'
+      }]);
+      if (error) {
+        showMsg('Could not record your attendance. Please try again.', 'error');
+        btn.disabled = false;
+      } else {
+        showMsg('Attendance recorded. Thank you.', 'success');
+        loadAgms();
+      }
+    });
+  });
+
+  wrap.querySelectorAll('.vote-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const resolutionId = btn.getAttribute('data-id');
+      const vote = btn.getAttribute('data-vote');
+      if (!confirm(`Confirm your vote: ${vote}? This cannot be changed once submitted.`)) return;
+
+      const { error } = await supabaseClient.from('agm_votes').insert([{
+        agm_resolution_id: resolutionId, member_id: currentMember.id, vote
+      }]);
+
+      if (error) {
+        showMsg('Could not record your vote. Please try again.', 'error');
+      } else {
+        showMsg('Your vote has been recorded.', 'success');
+        loadAgms();
+      }
+    });
+  });
+}
+
+(async () => {
+  currentMember = await requirePortalAuth();
+  if (!currentMember) return;
+  await loadAgms();
+})();
+</script>
+</body>
+</html>
