@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financial Statements — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  @media print {
+    .portal-sidebar, .portal-topbar, .no-print { display: none !important; }
+    .portal-main { width: 100%; }
+  }
+  .statement-total-row td { border-top: 2px solid var(--indigo); font-weight: 700; color: var(--indigo); }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="member-accounts.html">Member Accounts</a></li>
+        <li><a href="loan-monitoring.html">Loan Monitoring</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+        <li><a href="chart-of-accounts.html">Chart of Accounts</a></li>
+        <li><a href="general-ledger.html">General Ledger</a></li>
+        <li><a href="financial-statements.html">Financial Statements</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar no-print">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;" class="no-print">
+        <h1 style="font-size:1.4rem;margin:0;">Financial Statements</h1>
+        <button class="btn btn-outline-dark" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+      <p class="text-soft no-print" style="margin-bottom:10px;">Computed live from every journal entry posted in the General Ledger, as of today.</p>
+      <p style="margin-bottom:24px;"><strong>SODIS-SACCO — Financial Statements as at <span id="as-at-date"></span></strong></p>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Trial Balance</h2>
+      </div>
+      <div id="trial-balance-wrap" style="margin-bottom:36px;">
+        <p class="text-soft">Loading…</p>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Statement of Financial Position</h2>
+      </div>
+      <div id="sofp-wrap" style="margin-bottom:36px;">
+        <p class="text-soft">Loading…</p>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Statement of Comprehensive Income</h2>
+      </div>
+      <div id="soci-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+// For each account class, does a debit balance or a credit balance
+// represent a "normal" positive amount?
+const normalSide = {
+  Asset: 'debit', Expense: 'debit',
+  Liability: 'credit', Equity: 'credit', Income: 'credit'
+};
+
+async function loadStatements() {
+  document.getElementById('as-at-date').textContent = formatDate(new Date());
+
+  const { data: accounts } = await supabaseClient.from('chart_of_accounts').select('*').order('code');
+  const { data: lines } = await supabaseClient.from('journal_entry_lines').select('account_id, debit, credit');
+
+  const totals = {};
+  (accounts || []).forEach(a => { totals[a.id] = { account: a, debit: 0, credit: 0 }; });
+  (lines || []).forEach(l => {
+    if (totals[l.account_id]) {
+      totals[l.account_id].debit += Number(l.debit || 0);
+      totals[l.account_id].credit += Number(l.credit || 0);
+    }
+  });
+
+  const rows = Object.values(totals).filter(t => t.debit > 0 || t.credit > 0 || t.account.is_active);
+
+  // ---------- Trial Balance ----------
+  let tbDebit = 0, tbCredit = 0;
+  const tbRows = rows.map(t => {
+    const balance = t.debit - t.credit;
+    const debitCol = balance > 0 ? balance : 0;
+    const creditCol = balance < 0 ? -balance : 0;
+    tbDebit += debitCol; tbCredit += creditCol;
+    return { account: t.account, debitCol, creditCol };
+  }).filter(r => r.debitCol !== 0 || r.creditCol !== 0);
+
+  document.getElementById('trial-balance-wrap').innerHTML = tbRows.length === 0
+    ? '<div class="empty-state">No journal entries posted yet — the trial balance is empty.</div>'
+    : `
+    <table class="data-table">
+      <thead><tr><th>Account</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th></tr></thead>
+      <tbody>
+        ${tbRows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.account.code)} — ${escapeHtml(r.account.name)}</td>
+            <td class="num">${r.debitCol ? formatUGX(r.debitCol) : ''}</td>
+            <td class="num">${r.creditCol ? formatUGX(r.creditCol) : ''}</td>
+          </tr>`).join('')}
+        <tr class="statement-total-row"><td>Total</td><td class="num">${formatUGX(tbDebit)}</td><td class="num">${formatUGX(tbCredit)}</td></tr>
+      </tbody>
+    </table>
+    ${Math.abs(tbDebit - tbCredit) > 0.01 ? '<p style="color:var(--brick);margin-top:8px;font-size:0.88rem;">⚠ Trial balance does not balance — check posted entries.</p>' : ''}
+  `;
+
+  // ---------- Statement of Financial Position (Assets / Liabilities / Equity) ----------
+  function classBalance(cls) {
+    return rows.filter(t => t.account.account_class === cls).map(t => {
+      const raw = t.debit - t.credit;
+      const amount = normalSide[cls] === 'debit' ? raw : -raw;
+      return { account: t.account, amount };
+    }).filter(r => r.amount !== 0);
+  }
+
+  const assets = classBalance('Asset');
+  const liabilities = classBalance('Liability');
+  const equity = classBalance('Equity');
+  const totalAssets = assets.reduce((s, r) => s + r.amount, 0);
+  const totalLiabilities = liabilities.reduce((s, r) => s + r.amount, 0);
+  const totalEquity = equity.reduce((s, r) => s + r.amount, 0);
+
+  const renderGroup = (title, list, total) => `
+    <h4 style="color:var(--indigo);margin:16px 0 8px;font-size:0.95rem;">${title}</h4>
+    <table class="data-table">
+      <tbody>
+        ${list.length === 0 ? '<tr><td class="text-soft">None recorded</td><td></td></tr>' : list.map(r => `
+          <tr><td>${escapeHtml(r.account.code)} — ${escapeHtml(r.account.name)}</td><td class="num">${formatUGX(r.amount)}</td></tr>
+        `).join('')}
+        <tr class="statement-total-row"><td>Total ${title}</td><td class="num">${formatUGX(total)}</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  const balanced = Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 0.01;
+
+  document.getElementById('sofp-wrap').innerHTML = `
+    ${renderGroup('Assets', assets, totalAssets)}
+    ${renderGroup('Liabilities', liabilities, totalLiabilities)}
+    ${renderGroup('Equity', equity, totalEquity)}
+    <p style="margin-top:10px;font-size:0.9rem;">
+      Liabilities + Equity: <strong>${formatUGX(totalLiabilities + totalEquity)}</strong>
+      ${balanced ? ' <span class="badge badge-green">Balances with Assets</span>' : ' <span class="badge" style="background:var(--brick);color:var(--white);">Does not balance with Assets</span>'}
+    </p>
+  `;
+
+  // ---------- Statement of Comprehensive Income ----------
+  const income = classBalance('Income');
+  const expense = classBalance('Expense');
+  const totalIncome = income.reduce((s, r) => s + r.amount, 0);
+  const totalExpense = expense.reduce((s, r) => s + r.amount, 0);
+  const surplus = totalIncome - totalExpense;
+
+  document.getElementById('soci-wrap').innerHTML = `
+    ${renderGroup('Income', income, totalIncome)}
+    ${renderGroup('Expenses', expense, totalExpense)}
+    <table class="data-table" style="margin-top:10px;">
+      <tbody>
+        <tr class="statement-total-row">
+          <td>${surplus >= 0 ? 'Surplus' : 'Deficit'} for the period</td>
+          <td class="num">${formatUGX(Math.abs(surplus))}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+  await loadStatements();
+})();
+</script>
+</body>
+</html>
