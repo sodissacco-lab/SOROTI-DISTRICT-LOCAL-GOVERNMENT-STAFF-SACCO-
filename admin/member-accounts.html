@@ -24,7 +24,6 @@
       <ul>
         <li><a href="dashboard.html">Dashboard</a></li>
         <li><a href="member-accounts.html">Member Accounts</a></li>
-        <li><a href="loan-monitoring.html">Loan Monitoring</a></li>
         <li><a href="applications.html">Membership Applications</a></li>
         <li><a href="loan-applications.html">Loan Applications</a></li>
         <li><a href="news.html">News</a></li>
@@ -493,13 +492,6 @@ async function postLoanRepayment(loanId, amount) {
 (async () => {
   const admin = await requireAdminAuth();
   if (!admin) return;
-
-  const params = new URLSearchParams(window.location.search);
-  const memberId = params.get('member_id');
-  if (memberId) {
-    const { data: member } = await supabaseClient.from('members').select('*').eq('id', memberId).maybeSingle();
-    if (member) selectMember(member);
-  }
 })();
 </script>
 </body>

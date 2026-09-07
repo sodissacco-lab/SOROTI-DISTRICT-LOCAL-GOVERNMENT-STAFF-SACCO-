@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>General Ledger — SODIS-SACCO Management Portal</title>
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1B3A5C">
+<link rel="apple-touch-icon" href="../assets/icon-192.png">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+  .je-line { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: center; }
+  .je-line select, .je-line input { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 3px; font-family: var(--font-body); }
+  .je-remove { background: none; border: none; color: var(--brick); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; }
+  .je-totals { display: flex; gap: 24px; margin: 14px 0; font-size: 0.92rem; }
+  .je-totals strong { color: var(--indigo); }
+</style>
+</head>
+<body>
+
+<div class="portal-shell">
+  <aside class="portal-sidebar">
+    <div class="brand">
+      <a href="dashboard.html" style="display:flex;align-items:center;gap:10px;color:var(--white);text-decoration:none;">
+        <span class="brand-mark"><img src="../assets/logo.png" alt="SODIS-SACCO logo"></span>
+        <span class="brand-text"><strong>SODIS-SACCO</strong><span>Management Portal</span></span>
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="member-accounts.html">Member Accounts</a></li>
+        <li><a href="loan-monitoring.html">Loan Monitoring</a></li>
+        <li><a href="applications.html">Membership Applications</a></li>
+        <li><a href="loan-applications.html">Loan Applications</a></li>
+        <li><a href="chart-of-accounts.html">Chart of Accounts</a></li>
+        <li><a href="general-ledger.html">General Ledger</a></li>
+        <li><a href="financial-statements.html">Financial Statements</a></li>
+        <li><a href="news.html">News</a></li>
+        <li><a href="messages.html">Contact Messages</a></li>
+        <li><a href="stats.html">Site Statistics</a></li>
+      </ul>
+      <div class="logout-row">
+        <ul>
+          <li><a href="#" data-logout>Log out</a></li>
+          <li><a href="../index.html">← SODIS-SACCO website</a></li>
+        </ul>
+      </div>
+    </nav>
+  </aside>
+
+  <div class="portal-main">
+    <div class="portal-topbar">
+      <button class="sidebar-toggle">Menu</button>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:var(--indigo);" data-admin-name>—</div>
+        <div style="font-size:0.8rem;color:var(--ink-soft);">Staff account</div>
+      </div>
+    </div>
+
+    <div class="portal-content">
+      <h1 style="font-size:1.4rem;">General Ledger</h1>
+      <p class="text-soft" style="margin-bottom:24px;">Post a journal entry — debits and credits must balance before it can be saved.</p>
+
+      <div id="msg-banner" class="form-msg"></div>
+
+      <div class="form-panel" style="max-width:680px;margin-bottom:36px;">
+        <h3 class="mt-0">New journal entry</h3>
+        <div class="field-row two">
+          <div class="field">
+            <label for="je-date">Date</label>
+            <input type="date" id="je-date">
+          </div>
+          <div class="field">
+            <label for="je-description">Description</label>
+            <input type="text" id="je-description" placeholder="e.g. Office rent for September">
+          </div>
+        </div>
+
+        <div id="je-lines"></div>
+        <button class="btn btn-outline-dark btn-sm" id="add-line-btn" style="margin-bottom:14px;">+ Add line</button>
+
+        <div class="je-totals">
+          <span>Total debit: <strong id="total-debit">UGX 0</strong></span>
+          <span>Total credit: <strong id="total-credit">UGX 0</strong></span>
+          <span id="balance-indicator"></span>
+        </div>
+
+        <button class="btn btn-green btn-block" id="post-entry-btn">Post journal entry</button>
+      </div>
+
+      <div class="section-head" style="margin-bottom:14px;">
+        <h2 style="font-size:1.1rem;">Recent entries</h2>
+      </div>
+      <div id="entries-wrap">
+        <p class="text-soft">Loading…</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="js/admin.js"></script>
+<script>
+let accounts = [];
+
+function showMsg(text, type) {
+  const banner = document.getElementById('msg-banner');
+  banner.textContent = text;
+  banner.className = 'form-msg ' + type + ' show';
+  banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function accountOptions(selectedId) {
+  return '<option value="">Select account…</option>' + accounts.map(a =>
+    `<option value="${a.id}" ${a.id === selectedId ? 'selected' : ''}>${escapeHtml(a.code)} — ${escapeHtml(a.name)}</option>`
+  ).join('');
+}
+
+function addLine() {
+  const container = document.getElementById('je-lines');
+  const row = document.createElement('div');
+  row.className = 'je-line';
+  row.innerHTML = `
+    <select class="je-account">${accountOptions()}</select>
+    <input type="number" class="je-debit" placeholder="Debit" min="0" step="0.01">
+    <input type="number" class="je-credit" placeholder="Credit" min="0" step="0.01">
+    <button type="button" class="je-remove" title="Remove line">✕</button>
+  `;
+  container.appendChild(row);
+  row.querySelector('.je-debit').addEventListener('input', updateTotals);
+  row.querySelector('.je-credit').addEventListener('input', updateTotals);
+  row.querySelector('.je-remove').addEventListener('click', () => { row.remove(); updateTotals(); });
+}
+
+function updateTotals() {
+  let totalDebit = 0, totalCredit = 0;
+  document.querySelectorAll('.je-line').forEach(row => {
+    totalDebit += Number(row.querySelector('.je-debit').value) || 0;
+    totalCredit += Number(row.querySelector('.je-credit').value) || 0;
+  });
+  document.getElementById('total-debit').textContent = formatUGX(totalDebit);
+  document.getElementById('total-credit').textContent = formatUGX(totalCredit);
+  const indicator = document.getElementById('balance-indicator');
+  if (totalDebit === 0 && totalCredit === 0) {
+    indicator.textContent = '';
+  } else if (totalDebit === totalCredit) {
+    indicator.innerHTML = '<span class="badge badge-green">Balanced</span>';
+  } else {
+    indicator.innerHTML = '<span class="badge" style="background:var(--brick);color:var(--white);">Not balanced</span>';
+  }
+  return { totalDebit, totalCredit };
+}
+
+document.getElementById('add-line-btn').addEventListener('click', addLine);
+
+document.getElementById('post-entry-btn').addEventListener('click', async () => {
+  const date = document.getElementById('je-date').value;
+  const description = document.getElementById('je-description').value.trim();
+  const { totalDebit, totalCredit } = updateTotals();
+
+  if (!date || !description) { showMsg('Enter a date and description.', 'error'); return; }
+  if (totalDebit === 0 || totalCredit === 0) { showMsg('Enter at least one debit and one credit line.', 'error'); return; }
+  if (totalDebit !== totalCredit) { showMsg('Debits and credits must balance before posting.', 'error'); return; }
+
+  const lines = [];
+  let invalidLine = false;
+  document.querySelectorAll('.je-line').forEach(row => {
+    const accountId = row.querySelector('.je-account').value;
+    const debit = Number(row.querySelector('.je-debit').value) || 0;
+    const credit = Number(row.querySelector('.je-credit').value) || 0;
+    if ((debit > 0 || credit > 0)) {
+      if (!accountId) { invalidLine = true; return; }
+      lines.push({ account_id: accountId, debit, credit });
+    }
+  });
+
+  if (invalidLine) { showMsg('Every line with an amount needs an account selected.', 'error'); return; }
+  if (lines.length < 2) { showMsg('A journal entry needs at least two lines.', 'error'); return; }
+
+  const btn = document.getElementById('post-entry-btn');
+  btn.disabled = true;
+  btn.textContent = 'Posting…';
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+
+  const { data: entry, error: entryError } = await supabaseClient
+    .from('journal_entries')
+    .insert([{ entry_date: date, description, created_by_email: session.user.email }])
+    .select().single();
+
+  if (entryError || !entry) {
+    showMsg('Could not create the journal entry.', 'error');
+    btn.disabled = false; btn.textContent = 'Post journal entry';
+    return;
+  }
+
+  const lineRows = lines.map(l => ({ ...l, journal_entry_id: entry.id }));
+  const { error: linesError } = await supabaseClient.from('journal_entry_lines').insert(lineRows);
+
+  if (linesError) {
+    showMsg('Entry created, but the lines could not be saved: ' + linesError.message, 'error');
+  } else {
+    showMsg(`Posted as ${entry.reference}.`, 'success');
+    document.getElementById('je-description').value = '';
+    document.getElementById('je-lines').innerHTML = '';
+    addLine(); addLine();
+    updateTotals();
+    loadEntries();
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Post journal entry';
+});
+
+async function loadEntries() {
+  const { data: entries, error } = await supabaseClient
+    .from('journal_entries')
+    .select('*, journal_entry_lines(*, chart_of_accounts(code, name))')
+    .order('entry_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(25);
+
+  const wrap = document.getElementById('entries-wrap');
+  if (error || !entries || entries.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No journal entries posted yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = entries.map(e => {
+    const lines = e.journal_entry_lines || [];
+    return `
+      <div class="app-card">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:start;">
+          <h3>${escapeHtml(e.reference)} — ${escapeHtml(e.description)}</h3>
+          <span class="text-soft" style="font-size:0.85rem;">${formatDate(e.entry_date)}</span>
+        </div>
+        <table class="data-table" style="margin-top:10px;">
+          <thead><tr><th>Account</th><th style="text-align:right;">Debit</th><th style="text-align:right;">Credit</th></tr></thead>
+          <tbody>
+            ${lines.map(l => `
+              <tr>
+                <td>${escapeHtml(l.chart_of_accounts ? l.chart_of_accounts.code + ' — ' + l.chart_of_accounts.name : '—')}</td>
+                <td class="num">${l.debit ? formatUGX(l.debit) : ''}</td>
+                <td class="num">${l.credit ? formatUGX(l.credit) : ''}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+}
+
+(async () => {
+  const admin = await requireAdminAuth();
+  if (!admin) return;
+
+  const { data } = await supabaseClient.from('chart_of_accounts').select('*').eq('is_active', true).order('code');
+  accounts = data || [];
+
+  document.getElementById('je-date').value = new Date().toISOString().slice(0, 10);
+  addLine(); addLine();
+
+  await loadEntries();
+})();
+</script>
+</body>
+</html>
